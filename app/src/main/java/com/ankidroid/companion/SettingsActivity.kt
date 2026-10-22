@@ -99,6 +99,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.ankidroid.companion.ui.LicensesDialog
 import com.ankidroid.companion.ui.WallpaperInstructionsDialog
 import com.ankidroid.companion.ui.WallpaperSetup
 import com.ankidroid.companion.ui.theme.AnkiNotificationsTheme
@@ -181,6 +182,8 @@ private fun SettingsScreen(
             onOpenWallpaperSettings = { WallpaperSetup.openSettings(context) },
         )
     }
+    var showLicenses by rememberSaveable { mutableStateOf(false) }
+    if (showLicenses) LicensesDialog(onDismiss = { showLicenses = false })
 
     /** Shows [newStyle] in the preview, without saving it (a slider being moved). */
     fun preview(target: WallpaperStyle.Target, newStyle: WallpaperStyle) {
@@ -363,8 +366,8 @@ private fun SettingsScreen(
                 }
             }
 
-            if (ReportIssue.isAvailable(context)) {
-                SettingsGroup(Icons.Filled.Info, stringResource(R.string.settings_help)) {
+            SettingsGroup(Icons.Filled.Info, stringResource(R.string.settings_help)) {
+                if (ReportIssue.isAvailable(context)) {
                     Text(
                         stringResource(R.string.report_issue_summary),
                         style = MaterialTheme.typography.bodySmall,
@@ -373,6 +376,14 @@ private fun SettingsScreen(
                     OutlinedButton(onClick = { ReportIssue.open(context) }) {
                         Text(stringResource(R.string.report_issue))
                     }
+                }
+                Text(
+                    stringResource(R.string.licenses_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedButton(onClick = { showLicenses = true }) {
+                    Text(stringResource(R.string.licenses_title))
                 }
             }
             Spacer(Modifier.height(16.dp))
