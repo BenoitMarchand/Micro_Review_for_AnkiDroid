@@ -1,5 +1,5 @@
 name: Report an issue
-description: Something doesn't work as expected in AnkiDroid Companion.
+description: Something doesn't work as expected in Micro Review for AnkiDroid.
 labels: ["bug"]
 body:
   - type: markdown
@@ -33,7 +33,7 @@ body:
   - type: input
     id: app-version
     attributes:
-      label: AnkiDroid Companion version
+      label: Micro Review for AnkiDroid version
     validations:
       required: true
   - type: input
