@@ -18,7 +18,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.ankidroid.companion"
+        applicationId = "com.ankidroid.microreview"
         minSdk = 26
         targetSdk = 34
         versionCode = 38

@@ -35,7 +35,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
-$AppId = 'com.ankidroid.companion'
+$AppId = 'com.ankidroid.microreview'
+# Package of the classes (the namespace), different from the application ID
+$ClassPackage = 'com.ankidroid.companion'
 
 . (Join-Path $PSScriptRoot 'android-env.ps1')
 
@@ -84,7 +86,7 @@ try {
     if ($LASTEXITCODE -ne 0) { Fail 'Could not install the tests.' }
 
     Write-Step 'Running the device tests'
-    $output = & $adb -s $deviceSerial shell am instrument -w -e notClass "$AppId.AnkiDroidProbeTest" "$AppId.test/androidx.test.runner.AndroidJUnitRunner"
+    $output = & $adb -s $deviceSerial shell am instrument -w -e notClass "$ClassPackage.AnkiDroidProbeTest" "$AppId.test/androidx.test.runner.AndroidJUnitRunner"
     $output | ForEach-Object { Write-Host $_ }
     if ($output -match '^OK \(\d+ tests?\)') {
         Write-Host 'All device tests passed.' -ForegroundColor Green
