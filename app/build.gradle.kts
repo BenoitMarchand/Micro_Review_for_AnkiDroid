@@ -55,6 +55,31 @@ android {
     }
 }
 
+// The project's LICENSE, shown in Settings › Help › Open-source licenses: copied into the app's assets, so the
+// copyright lines stay in LICENSE only.
+abstract class CopyLicense : DefaultTask() {
+    @get:InputFile
+    abstract val license: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        license.get().asFile.copyTo(outputDir.file("LICENSE.txt").get().asFile, overwrite = true)
+    }
+}
+
+val copyLicense = tasks.register<CopyLicense>("copyLicense") {
+    license.set(rootProject.layout.projectDirectory.file("LICENSE"))
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(copyLicense, CopyLicense::outputDir)
+    }
+}
+
 dependencies {
 
     implementation("androidx.core:core-ktx:1.10.1")
