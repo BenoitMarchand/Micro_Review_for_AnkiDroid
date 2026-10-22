@@ -38,7 +38,7 @@ Micro Review for AnkiDroid is a small Android app that lets the user review Anki
 
 ## Architecture
 
-Single module `:app`, package `com.ankidroid.companion`, mixed Java + Kotlin. The main screen is Jetpack Compose (Material 3, dynamic colors); the notification uses XML `RemoteViews` layouts.
+Single module `:app`, package (namespace) `com.ankidroid.companion`, application ID `com.ankidroid.microreview` (scripts: `$AppId` for adb, `$ClassPackage` for class names), mixed Java + Kotlin. The main screen is Jetpack Compose (Material 3, dynamic colors); the notification uses XML `RemoteViews` layouts.
 
 | File | Role |
 |---|---|

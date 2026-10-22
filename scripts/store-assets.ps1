@@ -67,7 +67,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
-$AppId = 'com.ankidroid.companion'
+$AppId = 'com.ankidroid.microreview'
+# Package of the classes (the namespace), different from the application ID
+$ClassPackage = 'com.ankidroid.companion'
 $AnkiDroidId = 'com.ichi2.anki'
 $Remote = '/sdcard/store-assets'
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
@@ -182,7 +184,7 @@ function Get-LockWallpaper {
 }
 
 function Set-CardWallpaper {
-    Shell "am start -a android.service.wallpaper.CHANGE_LIVE_WALLPAPER --ecn android.service.wallpaper.extra.LIVE_WALLPAPER_COMPONENT $AppId/.CardWallpaperService" | Out-Null
+    Shell "am start -a android.service.wallpaper.CHANGE_LIVE_WALLPAPER --ecn android.service.wallpaper.extra.LIVE_WALLPAPER_COMPONENT $AppId/$ClassPackage.CardWallpaperService" | Out-Null
     Invoke-NodeTap '^Set wallpaper$' 2 15
     $lockOnly = Wait-Node '^Lock screen$' 5
     if (-not $lockOnly) { Fail 'The wallpaper picker has no "Lock screen" choice: use an emulator with Android 14 or later.' }
@@ -498,7 +500,7 @@ if (-not $ConvertOnly) {
         Shell "pm grant $AppId android.permission.POST_NOTIFICATIONS" | Out-Null
 
         Write-Step 'Resetting the demo deck and rendering the icon'
-        $output = Shell "am instrument -w -e storeAssets true -e class $AppId.StoreAssetsSetup $AppId.test/androidx.test.runner.AndroidJUnitRunner"
+        $output = Shell "am instrument -w -e storeAssets true -e class $ClassPackage.StoreAssetsSetup $AppId.test/androidx.test.runner.AndroidJUnitRunner"
         if (-not ($output -match '^OK \(2 tests\)')) {
             $output | ForEach-Object { Write-Host $_ }
             Fail 'The setup failed: is the AnkiDroid API enabled (AnkiDroid: Settings > Advanced)?'
@@ -519,11 +521,11 @@ if (-not $ConvertOnly) {
         }
 
         Write-Step 'Screenshots of the main screen and Settings'
-        Shell "am start -n $AppId/.MainActivity" | Out-Null
+        Shell "am start -n $AppId/$ClassPackage.MainActivity" | Out-Null
         if (-not (Wait-Node '^Review order$' 15)) { Fail 'The main screen did not open.' }
         Start-Sleep -Seconds 1
         Save-Screenshot 'main'
-        Shell "am start -n $AppId/.SettingsActivity" | Out-Null
+        Shell "am start -n $AppId/$ClassPackage.SettingsActivity" | Out-Null
         Start-Sleep -Seconds 3
         Save-Screenshot 'settings'
         Show-Home

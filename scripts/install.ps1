@@ -39,7 +39,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
-$AppId = 'com.ankidroid.companion'
+$AppId = 'com.ankidroid.microreview'
+# Package of the classes (the namespace), different from the application ID
+$ClassPackage = 'com.ankidroid.companion'
 $LogTags = @('CardWallpaper', 'Notifications', 'BackgroundService')
 
 # Shared helpers: Write-Step, Fail, Find-AndroidSdk, Find-Jdk, Get-Devices.
@@ -118,13 +120,13 @@ if ($Probe) {
     # "am kill" only stops AnkiDroid if it's in the background: work in progress on screen is never lost.
     & $adb -s $device.Serial shell am kill com.ichi2.anki
     & $adb -s $device.Serial logcat -c
-    & $adb -s $device.Serial shell am instrument -w -e class "$AppId.AnkiDroidProbeTest" "$AppId.test/androidx.test.runner.AndroidJUnitRunner"
+    & $adb -s $device.Serial shell am instrument -w -e class "$ClassPackage.AnkiDroidProbeTest" "$AppId.test/androidx.test.runner.AndroidJUnitRunner"
     & $adb -s $device.Serial logcat -d -s AnkiProbe:I
 }
 
 if (-not $NoLaunch) {
     Write-Step 'Launching the app'
-    & $adb -s $device.Serial shell am start -n "$AppId/.MainActivity" | Out-Null
+    & $adb -s $device.Serial shell am start -n "$AppId/$ClassPackage.MainActivity" | Out-Null
 }
 
 Write-Host 'Done.' -ForegroundColor Green
