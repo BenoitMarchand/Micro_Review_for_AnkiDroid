@@ -21,8 +21,8 @@ android {
         applicationId = "com.ankidroid.microreview"
         minSdk = 26
         targetSdk = 34
-        versionCode = 38
-        versionName = "0.4.0-rc1.1"
+        versionCode = 39
+        versionName = "0.4.0-rc1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
