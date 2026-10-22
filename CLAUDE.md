@@ -22,7 +22,7 @@ Micro Review for AnkiDroid is a small Android app that lets the user review Anki
 - Release check: `scripts/release.ps1` (build + unit tests + device tests, then `gh workflow run release.yml`; a release candidate by default, `-Final` to release the validated candidate). Shared script helpers: `scripts/android-env.ps1`.
 - Install on a connected device: `./gradlew installDebug`, or on Windows `scripts/install.ps1` (finds the SDK and a JDK 17+, detects the device, installs and launches; `-Wait`, `-Serial`, `-Logcat`, `-NoLaunch`). Also available in VS Code as the default build task (Ctrl+Shift+B).
 - APK output: `app/build/outputs/apk/debug/app-debug.apk`
-- `minSdk 26`, `targetSdk 34`, `compileSdk 34`. Anything newer than API 26 must be guarded with `Build.VERSION.SDK_INT` checks.
+- `minSdk 26`, `targetSdk 36`, `compileSdk 36` (edge-to-edge is enforced: Compose screens handle the insets). Anything newer than API 26 must be guarded with `Build.VERSION.SDK_INT` checks.
 - Manual testing needs a real device or emulator with AnkiDroid installed and at least one deck with due cards.
 
 ## Branches, versions and releases
