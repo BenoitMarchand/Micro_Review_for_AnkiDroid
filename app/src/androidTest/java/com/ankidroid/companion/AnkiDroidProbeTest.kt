@@ -5,7 +5,6 @@ import android.content.Context
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.ichi2.anki.FlashCardsContract
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -60,8 +59,8 @@ class AnkiDroidProbeTest {
                 "-> ${if (selectedBefore == selectedAfter) "UNCHANGED" else "CHANGED"}")
             if (selectedBefore != null && selectedAfter != selectedBefore) {
                 // Put the user's selection back.
-                val values = ContentValues().apply { put(FlashCardsContract.Deck.DECK_ID, selectedBefore) }
-                context.contentResolver.update(FlashCardsContract.Deck.CONTENT_SELECTED_URI, values, null, null)
+                val values = ContentValues().apply { put(AnkiDroidContract.Deck.DECK_ID, selectedBefore) }
+                context.contentResolver.update(AnkiDroidContract.Deck.CONTENT_SELECTED_URI, values, null, null)
                 log("restored AnkiDroid selected deck: ${selectedDeck(context)}")
             }
         }
@@ -69,7 +68,7 @@ class AnkiDroidProbeTest {
 
     private fun selectedDeck(context: Context): Long? =
         context.contentResolver.query(
-            FlashCardsContract.Deck.CONTENT_SELECTED_URI, arrayOf(FlashCardsContract.Deck.DECK_ID), null, null, null
+            AnkiDroidContract.Deck.CONTENT_SELECTED_URI, arrayOf(AnkiDroidContract.Deck.DECK_ID), null, null, null
         )?.use { cursor -> if (cursor.moveToFirst()) cursor.getLong(0) else null }
 
     private fun <T> timed(block: () -> T): Pair<T, Long> {

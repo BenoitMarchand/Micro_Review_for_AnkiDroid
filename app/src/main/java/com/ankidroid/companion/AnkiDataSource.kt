@@ -8,8 +8,6 @@ import android.net.Uri
 import android.util.Log
 import androidx.annotation.VisibleForTesting
 import androidx.core.content.ContextCompat
-import com.ichi2.anki.FlashCardsContract
-import com.ichi2.anki.api.AddContentApi
 import org.json.JSONArray
 import org.json.JSONException
 
@@ -61,25 +59,32 @@ object AnkiData {
     fun source(context: Context): AnkiDataSource = override ?: ContentProviderAnkiData(context.applicationContext)
 }
 
-/** AnkiDroid's public ContentProvider API ([FlashCardsContract]). Each call is IPC: keep it off the main thread. */
+/** AnkiDroid's public ContentProvider API ([AnkiDroidContract]). Each call is IPC: keep it off the main thread. */
 class ContentProviderAnkiData(private val context: Context) : AnkiDataSource {
-    private val api by lazy { AddContentApi(context) }
-
     override fun isPermissionGranted(): Boolean =
-        ContextCompat.checkSelfPermission(context, AddContentApi.READ_WRITE_PERMISSION) == PackageManager.PERMISSION_GRANTED
+        ContextCompat.checkSelfPermission(context, AnkiDroidContract.READ_WRITE_PERMISSION) == PackageManager.PERMISSION_GRANTED
 
-    override fun deckNames(): Map<Long, String>? = api.deckList
+    override fun deckNames(): Map<Long, String>? {
+        val projection = arrayOf(AnkiDroidContract.Deck.DECK_ID, AnkiDroidContract.Deck.DECK_NAME)
+        return context.contentResolver.query(AnkiDroidContract.Deck.CONTENT_ALL_URI, projection, null, null, null)?.use { cursor ->
+            val idColumn = cursor.getColumnIndexOrThrow(AnkiDroidContract.Deck.DECK_ID)
+            val nameColumn = cursor.getColumnIndexOrThrow(AnkiDroidContract.Deck.DECK_NAME)
+            val decks = HashMap<Long, String>()
+            while (cursor.moveToNext()) decks[cursor.getLong(idColumn)] = cursor.getString(nameColumn)
+            decks
+        }
+    }
 
-    override fun deckName(deckId: Long): String? = api.getDeckName(deckId)
+    override fun deckName(deckId: Long): String? = deckNames()?.get(deckId)
 
     override fun deckCounts(): Map<Long, IntArray> {
         val counts = HashMap<Long, IntArray>()
         if (!isPermissionGranted()) return counts
-        val projection = arrayOf(FlashCardsContract.Deck.DECK_ID, FlashCardsContract.Deck.DECK_COUNTS)
+        val projection = arrayOf(AnkiDroidContract.Deck.DECK_ID, AnkiDroidContract.Deck.DECK_COUNTS)
         try {
-            context.contentResolver.query(FlashCardsContract.Deck.CONTENT_ALL_URI, projection, null, null, null)?.use { cursor ->
-                val idColumn = cursor.getColumnIndexOrThrow(FlashCardsContract.Deck.DECK_ID)
-                val countsColumn = cursor.getColumnIndexOrThrow(FlashCardsContract.Deck.DECK_COUNTS)
+            context.contentResolver.query(AnkiDroidContract.Deck.CONTENT_ALL_URI, projection, null, null, null)?.use { cursor ->
+                val idColumn = cursor.getColumnIndexOrThrow(AnkiDroidContract.Deck.DECK_ID)
+                val countsColumn = cursor.getColumnIndexOrThrow(AnkiDroidContract.Deck.DECK_COUNTS)
                 while (cursor.moveToNext()) {
                     val json = JSONArray(cursor.getString(countsColumn))
                     counts[cursor.getLong(idColumn)] = intArrayOf(json.getInt(0), json.getInt(1), json.getInt(2))
@@ -97,12 +102,12 @@ class ContentProviderAnkiData(private val context: Context) : AnkiDataSource {
         if (!isPermissionGranted()) return emptyList()
         val cards = queryReviewInfo(deckId, limit, projection = null) { cursor ->
             CardInfo().apply {
-                cardOrd = cursor.getInt(cursor.getColumnIndexOrThrow(FlashCardsContract.ReviewInfo.CARD_ORD))
-                noteID = cursor.getLong(cursor.getColumnIndexOrThrow(FlashCardsContract.ReviewInfo.NOTE_ID))
-                buttonCount = cursor.getInt(cursor.getColumnIndexOrThrow(FlashCardsContract.ReviewInfo.BUTTON_COUNT))
+                cardOrd = cursor.getInt(cursor.getColumnIndexOrThrow(AnkiDroidContract.ReviewInfo.CARD_ORD))
+                noteID = cursor.getLong(cursor.getColumnIndexOrThrow(AnkiDroidContract.ReviewInfo.NOTE_ID))
+                buttonCount = cursor.getInt(cursor.getColumnIndexOrThrow(AnkiDroidContract.ReviewInfo.BUTTON_COUNT))
                 try {
-                    fileNames = JSONArray(cursor.getString(cursor.getColumnIndexOrThrow(FlashCardsContract.ReviewInfo.MEDIA_FILES)))
-                    nextReviewTexts = JSONArray(cursor.getString(cursor.getColumnIndexOrThrow(FlashCardsContract.ReviewInfo.NEXT_REVIEW_TIMES)))
+                    fileNames = JSONArray(cursor.getString(cursor.getColumnIndexOrThrow(AnkiDroidContract.ReviewInfo.MEDIA_FILES)))
+                    nextReviewTexts = JSONArray(cursor.getString(cursor.getColumnIndexOrThrow(AnkiDroidContract.ReviewInfo.NEXT_REVIEW_TIMES)))
                 } catch (e: JSONException) {
                     Log.w(TAG, "Could not read the media files or next review times", e)
                 }
@@ -114,31 +119,31 @@ class ContentProviderAnkiData(private val context: Context) : AnkiDataSource {
 
     override fun dueCardKeys(deckId: Long, limit: Int): List<CardSync.CardKey> {
         if (!isPermissionGranted()) return emptyList()
-        val projection = arrayOf(FlashCardsContract.ReviewInfo.NOTE_ID, FlashCardsContract.ReviewInfo.CARD_ORD)
+        val projection = arrayOf(AnkiDroidContract.ReviewInfo.NOTE_ID, AnkiDroidContract.ReviewInfo.CARD_ORD)
         return queryReviewInfo(deckId, limit, projection) { cursor ->
             CardSync.CardKey(
-                cursor.getLong(cursor.getColumnIndexOrThrow(FlashCardsContract.ReviewInfo.NOTE_ID)),
-                cursor.getInt(cursor.getColumnIndexOrThrow(FlashCardsContract.ReviewInfo.CARD_ORD)),
+                cursor.getLong(cursor.getColumnIndexOrThrow(AnkiDroidContract.ReviewInfo.NOTE_ID)),
+                cursor.getInt(cursor.getColumnIndexOrThrow(AnkiDroidContract.ReviewInfo.CARD_ORD)),
             )
         }
     }
 
     override fun reviewCard(noteId: Long, cardOrd: Int, ease: Int, timeTakenMs: Long) {
         val values = ContentValues().apply {
-            put(FlashCardsContract.ReviewInfo.NOTE_ID, noteId)
-            put(FlashCardsContract.ReviewInfo.CARD_ORD, cardOrd)
-            put(FlashCardsContract.ReviewInfo.EASE, ease)
-            put(FlashCardsContract.ReviewInfo.TIME_TAKEN, timeTakenMs)
+            put(AnkiDroidContract.ReviewInfo.NOTE_ID, noteId)
+            put(AnkiDroidContract.ReviewInfo.CARD_ORD, cardOrd)
+            put(AnkiDroidContract.ReviewInfo.EASE, ease)
+            put(AnkiDroidContract.ReviewInfo.TIME_TAKEN, timeTakenMs)
         }
-        context.contentResolver.update(FlashCardsContract.ReviewInfo.CONTENT_URI, values, null, null)
+        context.contentResolver.update(AnkiDroidContract.ReviewInfo.CONTENT_URI, values, null, null)
     }
 
     override fun selectedDeck(): Long? {
         if (!isPermissionGranted()) return null
-        val projection = arrayOf(FlashCardsContract.Deck.DECK_ID)
+        val projection = arrayOf(AnkiDroidContract.Deck.DECK_ID)
         return try {
-            context.contentResolver.query(FlashCardsContract.Deck.CONTENT_SELECTED_URI, projection, null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) cursor.getLong(cursor.getColumnIndexOrThrow(FlashCardsContract.Deck.DECK_ID)) else null
+            context.contentResolver.query(AnkiDroidContract.Deck.CONTENT_SELECTED_URI, projection, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getLong(cursor.getColumnIndexOrThrow(AnkiDroidContract.Deck.DECK_ID)) else null
             }
         } catch (e: RuntimeException) {
             Log.e(TAG, "Could not read the selected deck", e)
@@ -148,9 +153,9 @@ class ContentProviderAnkiData(private val context: Context) : AnkiDataSource {
 
     override fun selectDeck(deckId: Long): Boolean {
         if (!isPermissionGranted()) return false
-        val values = ContentValues().apply { put(FlashCardsContract.Deck.DECK_ID, deckId) }
+        val values = ContentValues().apply { put(AnkiDroidContract.Deck.DECK_ID, deckId) }
         return try {
-            context.contentResolver.update(FlashCardsContract.Deck.CONTENT_SELECTED_URI, values, null, null) > 0
+            context.contentResolver.update(AnkiDroidContract.Deck.CONTENT_SELECTED_URI, values, null, null) > 0
         } catch (e: RuntimeException) {
             Log.e(TAG, "Could not select deck $deckId", e)
             false
@@ -163,7 +168,7 @@ class ContentProviderAnkiData(private val context: Context) : AnkiDataSource {
         val arguments = if (deckId == -1L) arrayOf("$limit") else arrayOf("$limit", "$deckId")
         val rows = ArrayList<T>()
         try {
-            context.contentResolver.query(FlashCardsContract.ReviewInfo.CONTENT_URI, projection, selection, arguments, null)?.use { cursor ->
+            context.contentResolver.query(AnkiDroidContract.ReviewInfo.CONTENT_URI, projection, selection, arguments, null)?.use { cursor ->
                 while (cursor.moveToNext()) rows.add(map(cursor))
             }
         } catch (e: RuntimeException) {
@@ -174,15 +179,15 @@ class ContentProviderAnkiData(private val context: Context) : AnkiDataSource {
 
     /** Reads the question and answer of [card]. Returns false if they can't be read. */
     private fun readContent(card: CardInfo): Boolean {
-        val uri = Uri.withAppendedPath(FlashCardsContract.Note.CONTENT_URI, card.noteID.toString())
+        val uri = Uri.withAppendedPath(AnkiDroidContract.Note.CONTENT_URI, card.noteID.toString())
             .let { Uri.withAppendedPath(it, "cards") }
             .let { Uri.withAppendedPath(it, card.cardOrd.toString()) }
-        val projection = arrayOf(FlashCardsContract.Card.ANSWER_PURE, FlashCardsContract.Card.QUESTION_SIMPLE)
+        val projection = arrayOf(AnkiDroidContract.Card.ANSWER_PURE, AnkiDroidContract.Card.QUESTION_SIMPLE)
         return try {
             context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
                 if (!cursor.moveToFirst()) return@use false
-                card.a = cursor.getString(cursor.getColumnIndexOrThrow(FlashCardsContract.Card.ANSWER_PURE))
-                card.q = cursor.getString(cursor.getColumnIndexOrThrow(FlashCardsContract.Card.QUESTION_SIMPLE))
+                card.a = cursor.getString(cursor.getColumnIndexOrThrow(AnkiDroidContract.Card.ANSWER_PURE))
+                card.q = cursor.getString(cursor.getColumnIndexOrThrow(AnkiDroidContract.Card.QUESTION_SIMPLE))
                 true
             } ?: false
         } catch (e: RuntimeException) {

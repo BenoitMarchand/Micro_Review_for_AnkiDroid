@@ -7,7 +7,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.widget.Toast
 import androidx.core.net.toUri
-import com.ichi2.anki.api.AddContentApi
 
 /** "Report an issue" in Settings: opens a GitHub issue prefilled with the phone, Android and app versions. */
 object ReportIssue {
@@ -29,7 +28,7 @@ object ReportIssue {
         device = "${Build.MANUFACTURER} ${Build.MODEL}",
         android = "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
         appVersion = versionName(context, context.packageName).orEmpty(),
-        ankiDroidVersion = AddContentApi.getAnkiDroidPackageName(context)?.let { versionName(context, it) }
+        ankiDroidVersion = AnkiDroidContract.ankiDroidPackageName(context)?.let { versionName(context, it) }
             ?: context.getString(R.string.report_issue_ankidroid_missing),
     )
 
