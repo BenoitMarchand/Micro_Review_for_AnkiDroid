@@ -96,7 +96,9 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-    implementation("com.github.ankidroid:Anki-Android:v2.17alpha8")
+    // AnkiDroid's API library (JitPack): only the store assets setup uses it, to create the demo deck. The app
+    // talks to AnkiDroid's ContentProvider directly (AnkiDroidContract).
+    androidTestImplementation("com.github.ankidroid:Anki-Android:v2.17alpha8")
     implementation("androidx.work:work-runtime:2.9.0")
 
 }

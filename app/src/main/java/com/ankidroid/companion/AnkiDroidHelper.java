@@ -7,7 +7,6 @@ import android.os.Looper;
 import android.util.Log;
 import android.widget.Toast;
 
-import com.ichi2.anki.api.AddContentApi;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,7 +40,7 @@ public class AnkiDroidHelper {
      * @return true if the API is available to use
      */
     public static boolean isApiAvailable(Context context) {
-        return AnkiData.getOverride() != null || AddContentApi.getAnkiDroidPackageName(context) != null;
+        return AnkiData.getOverride() != null || AnkiDroidContract.INSTANCE.ankiDroidPackageName(context) != null;
     }
 
     public boolean isPermissionGranted() {

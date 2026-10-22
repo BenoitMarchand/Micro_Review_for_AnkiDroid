@@ -29,7 +29,6 @@ import com.ankidroid.companion.ui.ScreenState
 import com.ankidroid.companion.ui.SetupStatus
 import com.ankidroid.companion.ui.WallpaperSetup
 import com.ankidroid.companion.ui.theme.AnkiNotificationsTheme
-import com.ichi2.anki.api.AddContentApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -99,7 +98,7 @@ class MainActivity : ComponentActivity() {
     private fun requestMissingPermissions() {
         val missing = buildList {
             if (AnkiDroidHelper.isApiAvailable(this@MainActivity) && !AnkiDroidHelper(this@MainActivity).isPermissionGranted) {
-                add(AddContentApi.READ_WRITE_PERMISSION)
+                add(AnkiDroidContract.READ_WRITE_PERMISSION)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !isGranted(Manifest.permission.POST_NOTIFICATIONS)) {
                 add(Manifest.permission.POST_NOTIFICATIONS)
