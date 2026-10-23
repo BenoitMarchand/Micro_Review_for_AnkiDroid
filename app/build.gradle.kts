@@ -13,6 +13,12 @@ val issuesRepository: String = providers.environmentVariable("GITHUB_REPOSITORY"
     Regex("""github\.com[:/]([^/]+/[^/]+?)(\.git)?$""").find(origin)?.groupValues?.get(1)
 }.getOrNull().orEmpty()
 
+// Upload key that signs the release build for the Play Store (Play App Signing), never in the repository: Gradle
+// properties, set locally in ~/.gradle/gradle.properties and in CI through ORG_GRADLE_PROJECT_* variables. Without
+// them, the release build is unsigned.
+val uploadStoreFile: String? = providers.gradleProperty("microreviewUploadStoreFile").orNull
+val uploadStorePassword: String? = providers.gradleProperty("microreviewUploadStorePassword").orNull
+
 android {
     namespace = "com.orlikalabs.microreview"
     compileSdk = 36
@@ -31,8 +37,20 @@ android {
         resValue("string", "issues_repository", issuesRepository)
     }
 
+    signingConfigs {
+        if (uploadStoreFile != null && uploadStorePassword != null) {
+            create("upload") {
+                storeFile = file(uploadStoreFile)
+                storePassword = uploadStorePassword
+                keyAlias = providers.gradleProperty("microreviewUploadKeyAlias").getOrElse("upload")
+                keyPassword = providers.gradleProperty("microreviewUploadKeyPassword").getOrElse(uploadStorePassword)
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("upload")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
