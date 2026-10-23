@@ -21,8 +21,8 @@ android {
         applicationId = "com.orlikalabs.microreview"
         minSdk = 26
         targetSdk = 34
-        versionCode = 42
-        versionName = "0.4.0-rc1.5"
+        versionCode = 43
+        versionName = "0.4.0-rc1.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
