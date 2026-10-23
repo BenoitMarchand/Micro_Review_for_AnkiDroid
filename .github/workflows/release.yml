@@ -5,7 +5,7 @@ name: Release
 #   version with "-rc1" (or the next candidate, -rc2, -rc3...), tags vX.Y.0-rcN on develop and publishes the APK
 #   as a GitHub pre-release. main is not changed.
 # - "final": once the candidate is validated, drops the "-rcN" suffix, merges develop into main, tags vX.Y.0
-#   and publishes the APK as the latest GitHub release.
+#   and publishes the APK as the latest GitHub release, with the signed bundle for the Play Store.
 # Nothing is tagged unless the device tests pass on an emulator.
 on:
   workflow_dispatch:
@@ -90,6 +90,26 @@ jobs:
     - name: Build with Gradle (lint and unit tests)
       run: ./gradlew build assembleDebug
 
+    # Final release only: the Android App Bundle signed with the upload key, attached to the GitHub release and
+    # uploaded to the Play Console by hand. The key comes from the UPLOAD_KEYSTORE_BASE64 (the .jks file in base64)
+    # and UPLOAD_KEYSTORE_PASSWORD secrets; without them, the release goes on without the bundle.
+    - name: Build the signed bundle for the Play Store
+      id: bundle
+      if: inputs.stage == 'final'
+      env:
+        UPLOAD_KEYSTORE_BASE64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+        ORG_GRADLE_PROJECT_microreviewUploadStorePassword: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
+      run: |
+        if [ -z "$UPLOAD_KEYSTORE_BASE64" ] || [ -z "$ORG_GRADLE_PROJECT_microreviewUploadStorePassword" ]; then
+          echo "::warning::No upload key secrets: the release has no Play Store bundle."
+          exit 0
+        fi
+        KEYSTORE="$RUNNER_TEMP/upload.jks"
+        echo "$UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+        ORG_GRADLE_PROJECT_microreviewUploadStoreFile="$KEYSTORE" ./gradlew bundleRelease
+        rm -f "$KEYSTORE"
+        echo "aab=${{ env.main_project_module }}/build/outputs/bundle/release/app-release.aab" >> "$GITHUB_OUTPUT"
+
     - name: Commit and tag (and merge into main for a final release)
       run: |
         VERSION="${{ steps.version.outputs.version }}"
@@ -114,6 +134,12 @@ jobs:
         VERSION="${{ steps.version.outputs.version }}"
         APK="Micro-Review-for-AnkiDroid-v$VERSION.apk"
         cp ${{ env.main_project_module }}/build/outputs/apk/debug/app-debug.apk "$APK"
+        FILES=("$APK")
+        if [ -n "${{ steps.bundle.outputs.aab }}" ]; then
+          AAB="Micro-Review-for-AnkiDroid-v$VERSION.aab"
+          cp "${{ steps.bundle.outputs.aab }}" "$AAB"
+          FILES+=("$AAB")
+        fi
         PREVIOUS=$(git tag --list 'v*' --sort=-v:refname | grep -v -e '-rc' -e "^v$VERSION\$" | head -n 1 || true)
         ARGS=(--title "v$VERSION" --generate-notes)
         if [ -n "$PREVIOUS" ]; then ARGS+=(--notes-start-tag "$PREVIOUS"); fi
@@ -122,4 +148,4 @@ jobs:
         else
           ARGS+=(--latest --target main)
         fi
-        gh release create "v$VERSION" "$APK" "${ARGS[@]}"
+        gh release create "v$VERSION" "${FILES[@]}" "${ARGS[@]}"

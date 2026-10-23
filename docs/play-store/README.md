@@ -103,7 +103,23 @@ The lock screen shows "Charged" because the script simulates a charger to keep t
 These are not handled by the script or the repository yet:
 
 - [x] **Target API level**: the app targets API 36. The Play Store raises the required level each year (API 35 since August 2025): check the current requirement in the Play Console before each release.
-- [ ] **Release build**: the Play Store needs an Android App Bundle (`./gradlew bundleRelease`) signed with an upload key, with Play App Signing. `release.yml` only publishes the debug APK on GitHub. Never commit the keystore. Decided: Play releases use the same versions as GitHub; the final stage of `release.yml` will attach the signed AAB to the GitHub release, uploaded to the Play Console by hand (release candidates stay on GitHub only, no Google credentials in GitHub).
+- [x] **Release build**: the Play Store needs an Android App Bundle signed with an upload key, with Play App Signing (Google keeps the app signing key). Play releases use the same versions as GitHub: the final stage of `release.yml` attaches the signed AAB to the GitHub release, uploaded to the Play Console by hand (release candidates stay on GitHub only, no Google credentials in GitHub). See [Signing the release build](#signing-the-release-build).
+
+## Signing the release build
+
+The upload key is a keystore (`.jks`) kept outside the repository, never committed, and backed up with its password. Generate it once with `keytool -genkeypair -v -keystore <path>.jks -alias upload -keyalg RSA -keysize 4096 -validity 10000` (the JDK's `keytool`), or in Android Studio › Build › Generate Signed App Bundle.
+
+The release build reads it from Gradle properties; without them, it is unsigned:
+
+| Property | Content |
+|---|---|
+| `microreviewUploadStoreFile` | Path of the `.jks` file |
+| `microreviewUploadStorePassword` | Its password |
+| `microreviewUploadKeyAlias` | Key alias, `upload` by default |
+| `microreviewUploadKeyPassword` | Key password, the store password by default |
+
+- **Locally**: put them in `~/.gradle/gradle.properties` (outside the repository, seen by every worktree), then `./gradlew bundleRelease`: `app/build/outputs/bundle/release/app-release.aab`.
+- **In CI** (`release.yml`, final stage): repository secrets `UPLOAD_KEYSTORE_BASE64` (the `.jks` file in base64: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("<path>.jks"))` in PowerShell) and `UPLOAD_KEYSTORE_PASSWORD`. Without them the release goes on, with a warning and no bundle.
 - [x] **Application ID**: `com.orlikalabs.microreview`, on the developer's own domain, as the AnkiDroid team asked (an ID under `com.ankidroid` would suggest an app maintained by them; they agreed to the app name). The Kotlin package is the same. It can't be changed once published. The listing must not suggest an official AnkiDroid app: no AnkiDroid logo, and the disclaimer at the end of the description.
 - [ ] **Developer account**: a personal account created after November 2023 must run a closed test with at least 12 testers for 14 days before applying for production (check the current rule in the Play Console).
 - [x] Feature graphic made, screenshots generated.
