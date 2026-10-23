@@ -69,7 +69,7 @@ The lock screen shows "Charged" because the script simulates a charger to keep t
 | Asset | Play Store requirement | Source |
 |---|---|---|
 | App icon | 512 × 512 PNG, 32-bit, ≤ 1 MB | `icon-512.png` |
-| Feature graphic | 1024 × 500 PNG or JPEG, required | **To make by hand** (e.g. the icon and the app name on the icon's background color) |
+| Feature graphic | 1024 × 500 PNG or JPEG, required | [play_store_banner.png](play_store_banner.png), made by hand in GIMP ([play_store_banner.xcf](play_store_banner.xcf)): the icon, the app name and a tagline on the icon's gradient. Export it without an alpha channel (the Play Console refuses transparency) |
 | Phone screenshots | 2 to 8, PNG or JPEG, 320 to 3840 px, long side ≤ 2 × short side | `screenshots/` |
 | Video | Optional, YouTube URL | From `raw/*.mp4` |
 
@@ -103,7 +103,8 @@ The lock screen shows "Charged" because the script simulates a charger to keep t
 These are not handled by the script or the repository yet:
 
 - [x] **Target API level**: the app targets API 36. The Play Store raises the required level each year (API 35 since August 2025): check the current requirement in the Play Console before each release.
-- [ ] **Release build**: the Play Store needs an Android App Bundle (`./gradlew bundleRelease`) signed with an upload key, with Play App Signing. `release.yml` only publishes the debug APK on GitHub. Never commit the keystore.
-- [x] **Application ID**: `com.ankidroid.microreview` (`com.ankidroid.companion` was the original repo's ID; the Kotlin package, i.e. the `namespace`, stays `com.ankidroid.companion`). It can't be changed once published. It still contains "ankidroid", and the name refers to AnkiDroid: the listing must not suggest an official AnkiDroid app (no AnkiDroid logo, the disclaimer at the end of the description), and asking the AnkiDroid team beforehand is wise.
+- [ ] **Release build**: the Play Store needs an Android App Bundle (`./gradlew bundleRelease`) signed with an upload key, with Play App Signing. `release.yml` only publishes the debug APK on GitHub. Never commit the keystore. Decided: Play releases use the same versions as GitHub; the final stage of `release.yml` will attach the signed AAB to the GitHub release, uploaded to the Play Console by hand (release candidates stay on GitHub only, no Google credentials in GitHub).
+- [x] **Application ID**: `com.orlikalabs.microreview`, on the developer's own domain, as the AnkiDroid team asked (an ID under `com.ankidroid` would suggest an app maintained by them; they agreed to the app name). The Kotlin package is the same. It can't be changed once published. The listing must not suggest an official AnkiDroid app: no AnkiDroid logo, and the disclaimer at the end of the description.
 - [ ] **Developer account**: a personal account created after November 2023 must run a closed test with at least 12 testers for 14 days before applying for production (check the current rule in the Play Console).
-- [ ] Feature graphic made, screenshots generated, privacy policy published, Data safety and App content forms filled.
+- [x] Feature graphic made, screenshots generated.
+- [ ] Privacy policy published, Data safety and App content forms filled.

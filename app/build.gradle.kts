@@ -14,15 +14,15 @@ val issuesRepository: String = providers.environmentVariable("GITHUB_REPOSITORY"
 }.getOrNull().orEmpty()
 
 android {
-    namespace = "com.ankidroid.companion"
+    namespace = "com.orlikalabs.microreview"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.ankidroid.microreview"
+        applicationId = "com.orlikalabs.microreview"
         minSdk = 26
         targetSdk = 36
-        versionCode = 38
-        versionName = "0.4.0-rc1.1"
+        versionCode = 43
+        versionName = "0.4.0-rc1.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -55,6 +55,31 @@ android {
     }
 }
 
+// The project's LICENSE, shown in Settings › Help › Open-source licenses: copied into the app's assets, so the
+// copyright lines stay in LICENSE only.
+abstract class CopyLicense : DefaultTask() {
+    @get:InputFile
+    abstract val license: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        license.get().asFile.copyTo(outputDir.file("LICENSE.txt").get().asFile, overwrite = true)
+    }
+}
+
+val copyLicense = tasks.register<CopyLicense>("copyLicense") {
+    license.set(rootProject.layout.projectDirectory.file("LICENSE"))
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(copyLicense, CopyLicense::outputDir)
+    }
+}
+
 dependencies {
 
     implementation("androidx.core:core-ktx:1.17.0")
@@ -72,7 +97,9 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-    implementation("com.github.ankidroid:Anki-Android:v2.17alpha8")
+    // AnkiDroid's API library (JitPack): only the store assets setup uses it, to create the demo deck. The app
+    // talks to AnkiDroid's ContentProvider directly (AnkiDroidContract).
+    androidTestImplementation("com.github.ankidroid:Anki-Android:v2.17alpha8")
     implementation("androidx.work:work-runtime:2.10.5")
 
 }

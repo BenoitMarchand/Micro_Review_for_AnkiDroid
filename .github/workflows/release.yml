@@ -60,7 +60,7 @@ jobs:
         arch: x86_64
         target: google_apis
         disable-animations: true
-        script: ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.ankidroid.companion.AnkiDroidProbeTest
+        script: ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.notClass=com.orlikalabs.microreview.AnkiDroidProbeTest
 
   release:
     needs: device-tests

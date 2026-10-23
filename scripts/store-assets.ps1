@@ -67,9 +67,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
-$AppId = 'com.ankidroid.microreview'
-# Package of the classes (the namespace), different from the application ID
-$ClassPackage = 'com.ankidroid.companion'
+$AppId = 'com.orlikalabs.microreview'
+# Package of the classes (the namespace); the same as the application ID, but they may differ
+$ClassPackage = 'com.orlikalabs.microreview'
 $AnkiDroidId = 'com.ichi2.anki'
 $Remote = '/sdcard/store-assets'
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
