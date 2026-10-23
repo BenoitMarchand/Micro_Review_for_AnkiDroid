@@ -5,7 +5,8 @@
 .DESCRIPTION
     1. Locates the Android SDK (adb) and a JDK 17 or newer (required by Gradle 9 / AGP 9).
     2. Detects connected devices (USB or Wi-Fi debugging) and lets you pick one if several are connected.
-    3. Runs `gradlew installDebug` on that device, then starts MainActivity.
+    3. Runs `gradlew installDebug` on that device, prints the installed version (and the one it replaced),
+       then starts MainActivity.
 
 .PARAMETER Serial
     Device serial to use (see `adb devices`). Skips the device prompt.
@@ -87,6 +88,16 @@ function Select-Device([string]$Adb) {
     }
 }
 
+# The app's version on the device, as "0.4.0-rc1 (code 52)", or $null when it isn't installed.
+function Get-InstalledVersion([string]$Adb, [string]$DeviceSerial) {
+    $info = & $Adb -s $DeviceSerial shell dumpsys package $AppId 2>$null | Out-String
+    $name = [regex]::Match($info, 'versionName=(\S+)')
+    $code = [regex]::Match($info, 'versionCode=(\d+)')
+    if (-not $name.Success) { return $null }
+    if ($code.Success) { return "$($name.Groups[1].Value) (code $($code.Groups[1].Value))" }
+    return $name.Groups[1].Value
+}
+
 # --- Main --------------------------------------------------------------------
 
 $adb = Initialize-AndroidEnv
@@ -95,6 +106,7 @@ Write-Step 'Detecting devices'
 & $adb start-server | Out-Null
 $device = Select-Device $adb
 Write-Host "    $($device.Serial)  $($device.Model)"
+$previousVersion = Get-InstalledVersion $adb $device.Serial
 
 Write-Step 'Building and installing the debug APK'
 $env:ANDROID_SERIAL = $device.Serial
@@ -105,6 +117,10 @@ try {
 } finally {
     Pop-Location
 }
+
+$installedVersion = Get-InstalledVersion $adb $device.Serial
+$was = if ($previousVersion) { "was $previousVersion" } else { 'not installed before' }
+Write-Host "    Installed version $installedVersion ($was)" -ForegroundColor Green
 
 if ($Probe) {
     Write-Step 'Running the AnkiDroid probe'
