@@ -15,12 +15,12 @@ val issuesRepository: String = providers.environmentVariable("GITHUB_REPOSITORY"
 
 android {
     namespace = "com.orlikalabs.microreview"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.orlikalabs.microreview"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 44
         versionName = "0.4.0-rc1.7"
 
@@ -82,23 +82,24 @@ androidComponents {
 
 dependencies {
 
-    implementation("androidx.core:core-ktx:1.10.1")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")
-    implementation("androidx.activity:activity-compose:1.9.3")
-    implementation(platform("androidx.compose:compose-bom:2025.01.00"))
+    implementation("androidx.core:core-ktx:1.17.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
+    implementation("androidx.activity:activity-compose:1.11.0")
+    implementation(platform("androidx.compose:compose-bom:2025.09.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-core")
     testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2025.01.00"))
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation(platform("androidx.compose:compose-bom:2025.09.01"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     // AnkiDroid's API library (JitPack): only the store assets setup uses it, to create the demo deck. The app
     // talks to AnkiDroid's ContentProvider directly (AnkiDroidContract).
     androidTestImplementation("com.github.ankidroid:Anki-Android:v2.17alpha8")
-    implementation("androidx.work:work-runtime:2.9.0")
+    implementation("androidx.work:work-runtime:2.10.5")
 
 }
