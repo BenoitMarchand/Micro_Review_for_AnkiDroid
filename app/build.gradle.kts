@@ -14,11 +14,11 @@ val issuesRepository: String = providers.environmentVariable("GITHUB_REPOSITORY"
 }.getOrNull().orEmpty()
 
 android {
-    namespace = "com.ankidroid.companion"
+    namespace = "com.orlikalabs.microreview"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.ankidroid.microreview"
+        applicationId = "com.orlikalabs.microreview"
         minSdk = 26
         targetSdk = 34
         versionCode = 42
