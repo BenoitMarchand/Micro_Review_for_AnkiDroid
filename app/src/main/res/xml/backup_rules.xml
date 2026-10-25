@@ -1,13 +1,17 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older that API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Backup rules up to Android 11 (data_extraction_rules.xml from Android 12). Only the user's choices are
+    backed up: the selected decks, the review settings and the styles with their pictures. The displayed card,
+    the lock session, the review timer and the widget / scheduled review state are left out: restored on a new
+    phone, they would start the app mid-session with a card from the old collection.
+    Keep the list in sync with data_extraction_rules.xml.
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <include domain="sharedpref" path="com.ankidroid.companion.deck_selection.xml" />
+    <include domain="sharedpref" path="com.ankidroid.companion.review_settings.xml" />
+    <include domain="sharedpref" path="com.ankidroid.companion.scheduled_review_settings.xml" />
+    <include domain="sharedpref" path="com.ankidroid.companion.wallpaper_style.xml" />
+    <include domain="sharedpref" path="com.ankidroid.companion.widget_style.xml" />
+    <include domain="file" path="wallpaper_background.jpg" />
+    <include domain="file" path="widget_background.jpg" />
 </full-backup-content>

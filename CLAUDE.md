@@ -100,6 +100,7 @@ Cards are never skipped in AnkiDroid's scheduler: fetching due cards is read-onl
 - PendingIntents must be `FLAG_IMMUTABLE` (targetSdk 31+). Distinct actions currently disambiguate the button intents; keep actions unique or use distinct request codes.
 - Implicit broadcasts (`SCREEN_OFF`, `SCREEN_ON`, `USER_PRESENT`) **cannot** be registered in the manifest on API 26+. They need a runtime-registered receiver inside a long-lived component (for example a foreground service).
 - Put user-facing strings in `res/values/strings.xml`.
+- Backup: only the user's choices are backed up (`res/xml/backup_rules.xml` and `data_extraction_rules.xml` list them; the displayed card and the session state are left out). A new SharedPreferences file or picture that holds a setting must be added to both files.
 - RemoteViews layouts only accept some views (no plain `View`: use `FrameLayout` for a divider); lint checks it.
 - `am instrument` force-stops the app, and Android then resets a live wallpaper of a force-stopped app: after running instrumented tests, the card wallpaper must be selected again.
 - Logging uses `Log.i` with the tags `"Notifications"` and `"BackgroundService"`.
