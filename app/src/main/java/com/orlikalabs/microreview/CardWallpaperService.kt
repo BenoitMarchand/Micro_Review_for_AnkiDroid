@@ -313,6 +313,13 @@ class CardWallpaperService : WallpaperService() {
             )
         }
 
+        /**
+         * Whether the card live wallpaper is the home screen wallpaper: left there when it was tried before the
+         * card picture (it then draws a plain background on the home screen).
+         */
+        fun isHomeWallpaper(context: Context): Boolean =
+            WallpaperManager.getInstance(context).wallpaperInfo?.let { isOurs(context, it) } == true
+
         private fun isOurs(context: Context, info: WallpaperInfo): Boolean =
             info.packageName == context.packageName && info.serviceName == CardWallpaperService::class.java.name
 

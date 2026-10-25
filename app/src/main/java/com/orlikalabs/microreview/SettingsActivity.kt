@@ -118,6 +118,9 @@ class SettingsActivity : ComponentActivity() {
     /** How the card reaches the lock screen. Read again on resume: the user may come back from the wallpaper settings. */
     private var lockScreenMode by mutableStateOf(LockScreenState.Mode.NONE)
 
+    /** The card live wallpaper is the home screen wallpaper (tried before the card picture). */
+    private var liveOnHome by mutableStateOf(false)
+
     /** "Display over other apps" allowed, checked again when coming back from the system settings. */
     private var canOpenAfterUnlock by mutableStateOf(false)
 
@@ -128,6 +131,7 @@ class SettingsActivity : ComponentActivity() {
             AnkiNotificationsTheme {
                 SettingsScreen(
                     lockScreenMode = lockScreenMode,
+                    liveOnHome = liveOnHome,
                     onLockScreenChanged = ::readLockScreenMode,
                     canOpenAfterUnlock = canOpenAfterUnlock,
                     onAllowOpenAfterUnlock = ::openOverlaySettings,
@@ -145,6 +149,7 @@ class SettingsActivity : ComponentActivity() {
 
     private fun readLockScreenMode() {
         lockScreenMode = LockScreenState.mode(CardWallpaperService.isActive(this), LockScreenPicture.isActive(this))
+        liveOnHome = CardWallpaperService.isHomeWallpaper(this)
     }
 
     private fun openOverlaySettings() {
@@ -167,6 +172,7 @@ private val TEXT_COLORS = listOf(0xFFFFFFFF.toInt(), 0xFF000000.toInt(), 0xFFFFE
 @Composable
 private fun SettingsScreen(
     lockScreenMode: LockScreenState.Mode,
+    liveOnHome: Boolean,
     onLockScreenChanged: () -> Unit,
     canOpenAfterUnlock: Boolean,
     onAllowOpenAfterUnlock: () -> Unit,
@@ -278,7 +284,9 @@ private fun SettingsScreen(
                 WallpaperStatus(
                     mode = lockScreenMode,
                     liveLockOnly = liveLockOnly,
+                    liveOnHome = liveOnHome,
                     onSetWallpaper = { showWallpaperInstructions = true },
+                    onOpenWallpaperSettings = { WallpaperSetup.openSettings(context) },
                     onStopPicture = {
                         LockScreenPicture.disable(context)
                         onLockScreenChanged()
@@ -815,10 +823,18 @@ private fun SettingsGroup(icon: ImageVector, title: String, content: @Composable
 /**
  * How the card reaches the lock screen: the live wallpaper (also on the home screen where it can't be lock only),
  * the card picture (with a tip if it doesn't show, and a button to stop it), or neither: a warning and a button to
- * the ways to set it, since the lock screen content and style only show with it.
+ * the ways to set it, since the lock screen content and style only show with it. With the picture, also when the
+ * live wallpaper tried before is still on the home screen ([liveOnHome]).
  */
 @Composable
-private fun WallpaperStatus(mode: LockScreenState.Mode, liveLockOnly: Boolean, onSetWallpaper: () -> Unit, onStopPicture: () -> Unit) {
+private fun WallpaperStatus(
+    mode: LockScreenState.Mode,
+    liveLockOnly: Boolean,
+    liveOnHome: Boolean,
+    onSetWallpaper: () -> Unit,
+    onOpenWallpaperSettings: () -> Unit,
+    onStopPicture: () -> Unit,
+) {
     if (mode != LockScreenState.Mode.NONE) {
         val picture = mode == LockScreenState.Mode.PICTURE
         Column {
@@ -837,6 +853,15 @@ private fun WallpaperStatus(mode: LockScreenState.Mode, liveLockOnly: Boolean, o
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            if (picture && liveOnHome) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.live_wallpaper_on_home),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                TextButton(onClick = onOpenWallpaperSettings) { Text(stringResource(R.string.open_wallpaper_settings)) }
             }
             if (picture) {
                 TextButton(onClick = onStopPicture) { Text(stringResource(R.string.lock_picture_stop)) }

@@ -166,6 +166,8 @@
     <string name="lock_picture_instead">Use a picture</string>
     <string name="live_wallpaper_instead">Live wallpaper</string>
     <string name="lock_picture_set">The card picture is now your lock screen wallpaper.</string>
+    <string name="lock_picture_set_home_live">The card picture is now your lock screen wallpaper. Your home screen still has the live card wallpaper: choose your home screen picture again in the wallpaper settings.</string>
+    <string name="live_wallpaper_on_home">Your home screen still has the live card wallpaper (a plain background). Choose your home screen picture again: the app can\'t put the previous one back.</string>
     <string name="lock_picture_refused">This device doesn\'t let apps change the lock screen picture.</string>
     <string name="wallpaper_status_picture">A picture of the current card is your lock screen wallpaper. It changes with each card.</string>
     <string name="lock_picture_tip">Card not showing on your lock screen? Turn off the lock screen features that change the picture by themselves (for example Magazine unlock or Glance). With a picture, the notification stays visible and cards follow each other.</string>

@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.orlikalabs.microreview.CardWallpaperService
 import com.orlikalabs.microreview.LockScreenPicture
 import com.orlikalabs.microreview.R
 import kotlinx.coroutines.Dispatchers
@@ -61,7 +62,13 @@ object WallpaperSetup {
     /** Sets the card picture on the lock screen, and tells whether it worked. */
     suspend fun setPicture(context: Context): Boolean {
         val done = withContext(Dispatchers.IO) { LockScreenPicture.canSet(context) && LockScreenPicture.enable(context) }
-        Toast.makeText(context, if (done) R.string.lock_picture_set else R.string.lock_picture_refused, Toast.LENGTH_LONG).show()
+        val message = when {
+            !done -> R.string.lock_picture_refused
+            // The live wallpaper tried before is still on the home screen: the app can't put the old picture back.
+            CardWallpaperService.isHomeWallpaper(context) -> R.string.lock_picture_set_home_live
+            else -> R.string.lock_picture_set
+        }
+        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
         return done
     }
 }
