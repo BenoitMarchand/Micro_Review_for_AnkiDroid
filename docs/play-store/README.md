@@ -96,6 +96,7 @@ The lock screen shows "Charged" because the script simulates a charger to keep t
 | `POST_NOTIFICATIONS` | The card notification, the scheduled review reminders |
 | `RECEIVE_BOOT_COMPLETED` | Post the card again and set the reminders again after a restart |
 | `SYSTEM_ALERT_WINDOW` | Optional "Open after unlock": start the review screen from the lock screen wallpaper (a background activity start) |
+| `SET_WALLPAPER` | Optional card picture on the lock screen, where the live wallpaper can't be set on the lock screen alone (lock screen only, never the home screen) |
 | Live wallpaper service | The card on the lock screen |
 
 ## Checklist before the first publication

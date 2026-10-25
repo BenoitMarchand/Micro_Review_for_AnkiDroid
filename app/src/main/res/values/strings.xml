@@ -17,7 +17,7 @@
     <string name="rotate_on_unlock">Change the card at every unlock</string>
     <string name="rotate_on_unlock_off">Off: an unanswered card stays until you answer it.</string>
     <string name="rotate_on_unlock_on">On: if you unlock without answering, another due card comes at the next lock. Skipped cards stay due in AnkiDroid; after an answer, the first card comes back.</string>
-    <string name="rotate_on_unlock_needs_wallpaper">Works once the card wallpaper is set on the lock screen.</string>
+    <string name="rotate_on_unlock_needs_wallpaper">Works once the live card wallpaper is set on the lock screen.</string>
     <string name="rotation_size">Rotate through the first %1$d due cards</string>
     <string name="rotation_size_warning">Above %1$d cards, the most urgent cards come back less often, and checking the card at each lock takes longer.</string>
     <string name="success">Success</string>
@@ -93,7 +93,7 @@
     <string name="review_mode_open_after_unlock_summary">No notification: the card is on the lock screen, and the review screen opens when you unlock your phone.</string>
     <string name="review_mode_needs_overlay">Android only lets the app open the review screen with the \"Display over other apps\" permission. Until it is allowed, the notification is used.</string>
     <string name="review_mode_allow_overlay">Allow</string>
-    <string name="review_mode_needs_wallpaper">Works once the card wallpaper is set on the lock screen. Until then, the notification is used.</string>
+    <string name="review_mode_needs_wallpaper">Works once the live card wallpaper is set on the lock screen. Until then, the notification is used.</string>
     <string name="style_settings_title">Style</string>
     <string name="style_target_lock_screen">Lock screen</string>
     <string name="style_target_widget">Widget</string>
@@ -132,8 +132,8 @@
     <string name="setup_battery">Keep checking for new cards</string>
     <string name="setup_battery_detail">Background activity is restricted for this app, so new cards don\'t show up. Set its battery usage to Optimized or Unrestricted.</string>
     <string name="setup_fix">Fix</string>
-    <string name="setup_wallpaper_detail_before_14">Set Micro Review for AnkiDroid as your wallpaper. On the lock screen only, it needs Android 14 or later for now: on this version, it also replaces your home screen wallpaper. It is also needed to show the card only while the phone is locked, one card per unlock; without it, the notification stays visible.</string>
-    <string name="wallpaper_lock_only_needs_android_14">The card wallpaper is meant for the lock screen only, which needs Android 14 or later for now. On this version, it is also your home screen wallpaper, and some devices keep their own lock screen picture (for example Magazine unlock).</string>
+    <string name="setup_wallpaper_detail_picture">Set a picture of the current card as your lock screen wallpaper. It changes with each card; your home screen wallpaper stays unchanged.</string>
+    <string name="live_wallpaper_both_screens_note">On this device, the live card wallpaper is also your home screen wallpaper. A picture of the card can be set on the lock screen only instead.</string>
     <string name="wallpaper_configured">Lock screen wallpaper configured</string>
     <string name="lock_screen_sensitive_tip">Answer hidden on the lock screen? Allow sensitive notifications in your phone\'s notification settings.</string>
 
@@ -160,5 +160,14 @@
     <string name="set_lock_wallpaper">Set lock screen wallpaper</string>
     <string name="open_wallpaper_settings">Open wallpaper settings</string>
     <string name="set_lock_wallpaper_instructions">In the wallpaper settings:\n\n1. Select the Lock screen preview (not Home screen).\n2. Open the wallpaper list, choose Live wallpapers, then Micro Review for AnkiDroid.\n3. When asked where to apply it, choose Lock screen only.\n\nYour home screen wallpaper stays unchanged.</string>
-    <string name="set_lock_wallpaper_instructions_both_screens">The card wallpaper is meant for the lock screen only, which needs Android 14 or later for now.\n\nOn this Android version, a live wallpaper is applied to both the home and the lock screen. The card is only shown while the phone is locked; the home screen will show a plain dark background. Some devices keep their own lock screen picture (for example Magazine unlock): turn it off in the system settings to see the card.\n\nIn the wallpaper settings, open Live wallpapers and choose Micro Review for AnkiDroid.</string>
+    <string name="lock_picture_instructions">Micro Review for AnkiDroid sets a picture of the current card as your lock screen wallpaper, and changes it with each card. Your home screen wallpaper stays unchanged.\n\nYour current lock screen picture is replaced, and the app can\'t put it back.\n\nIf the card doesn\'t show on your lock screen, turn off the lock screen features that change the picture by themselves (for example Magazine unlock or Glance).</string>
+    <string name="lock_picture_live_alternative">A live wallpaper is also possible on this device, but it replaces your home screen wallpaper too, and some lock screens don\'t show it.</string>
+    <string name="lock_picture_set_button">Set the card picture</string>
+    <string name="lock_picture_instead">Use a picture</string>
+    <string name="live_wallpaper_instead">Live wallpaper</string>
+    <string name="lock_picture_set">The card picture is now your lock screen wallpaper.</string>
+    <string name="lock_picture_refused">This device doesn\'t let apps change the lock screen picture.</string>
+    <string name="wallpaper_status_picture">A picture of the current card is your lock screen wallpaper. It changes with each card.</string>
+    <string name="lock_picture_tip">Card not showing on your lock screen? Turn off the lock screen features that change the picture by themselves (for example Magazine unlock or Glance). With a picture, the notification stays visible and cards follow each other.</string>
+    <string name="lock_picture_stop">Stop updating the picture</string>
 </resources>

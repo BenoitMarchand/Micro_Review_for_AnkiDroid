@@ -20,7 +20,7 @@ Review your AnkiDroid cards from the lock screen, a notification or a widget.
 Learn a little every time you pick up your phone. Micro Review for AnkiDroid shows the next card of your AnkiDroid decks where you already look: on your lock screen, in a notification and in a home screen widget. Answer it in a few seconds, without opening AnkiDroid.
 
 REVIEW FROM THE LOCK SCREEN
-• Set the Micro Review wallpaper on your lock screen: the question of the next card is shown there, in big letters. Your home screen wallpaper doesn't change (Android 14 or later).
+• Set the Micro Review wallpaper on your lock screen: the question of the next card is shown there, in big letters. Your home screen wallpaper doesn't change. Where a live wallpaper can't be set on the lock screen alone (before Android 14, some devices), a picture of the card is set there instead, changed with each card.
 • Choose its look: background color or your own picture (darkened, blurred, with a gradient or a panel behind the text so it stays readable), text color and size, question only or question and answer.
 
 ANSWER FROM A NOTIFICATION
@@ -40,7 +40,7 @@ YOUR DATA STAYS IN ANKIDROID
 
 REQUIREMENTS
 • AnkiDroid installed, with its API enabled (AnkiDroid: Settings › Advanced › Enable AnkiDroid API).
-• Lock screen wallpaper on the lock screen only: Android 14 or later for now. On older versions it is set on both the home and the lock screen, and some devices keep their own lock screen picture. The notification and the widget work from Android 8.
+• Live lock screen wallpaper: Android 14 or later with a lock screen wallpaper picker; elsewhere, a picture of the card (it replaces your lock screen picture). Lock screen features that change the picture by themselves (Magazine unlock, Glance) must be off.
 • Cards with sound or images are shown as text; cards with sound in the question are skipped (they stay due in AnkiDroid).
 
 Micro Review for AnkiDroid is an independent open source app. It is not made or endorsed by the AnkiDroid team.

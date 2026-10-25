@@ -22,6 +22,7 @@ Settings › Help › "Report an issue" opens a GitHub issue form in your browse
 - **AnkiDroid database access**: read your decks and cards, and record your answers.
 - **Notifications**: show the card to review.
 - **Run at startup**: show the card again after a restart, and keep the review reminders.
+- **Set wallpaper** (optional, only when you choose the card picture): put a picture of the current card on your lock screen. Your previous lock screen picture is not read or kept.
 - **Display over other apps** (optional, only for "Open after unlock"): open the review screen when you unlock your phone.
 
 ## Children

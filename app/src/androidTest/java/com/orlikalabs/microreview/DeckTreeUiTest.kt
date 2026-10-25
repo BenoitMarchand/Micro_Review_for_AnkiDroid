@@ -45,9 +45,9 @@ class DeckTreeUiTest {
                     decks = decks,
                     selectedDeckIds = listOf(1L),
                     currentCard = CurrentCard.NotStarted,
-                    lockOnlyWallpaper = true,
+                    liveLockOnly = true,
                     setup = SetupStatus(),
-                    actions = MainScreenActions({}, { _, _ -> }, {}, {}, {}, {}, {}, {}),
+                    actions = MainScreenActions({}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}),
                 )
             }
         }

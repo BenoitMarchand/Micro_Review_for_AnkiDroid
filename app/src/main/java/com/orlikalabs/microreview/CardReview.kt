@@ -106,11 +106,12 @@ object CardReview {
         prefs(context).getString(KEY_REVEALED_CARD, null) == key(card.noteID, card.cardOrd)
 
     /**
-     * Whether the lock screen wallpaper shows the answer under the question: the notification then shows the
-     * answer and its buttons right away, without "Show answer".
+     * Whether the lock screen wallpaper (or the card picture) shows the answer under the question: the
+     * notification then shows the answer and its buttons right away, without "Show answer".
      */
     fun isAnswerOnWallpaper(context: Context): Boolean =
-        WallpaperStyle.load(context).showAnswer && CardWallpaperService.isActive(context)
+        WallpaperStyle.load(context).showAnswer &&
+            (CardWallpaperService.isActive(context) || LockScreenPicture.isActive(context))
 
     private fun key(noteId: Long, ord: Int) = "$noteId:$ord"
 

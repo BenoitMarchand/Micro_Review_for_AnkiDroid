@@ -3,6 +3,7 @@ package com.orlikalabs.microreview
 import android.app.KeyguardManager
 import android.app.NotificationManager
 import android.app.WallpaperColors
+import android.app.WallpaperInfo
 import android.app.WallpaperManager
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -276,26 +277,15 @@ class CardWallpaperService : WallpaperService() {
             } ?: return
 
             try {
-                val content = if (isPreview || isLockScreenOnly() || showCard) currentContent() else null
+                val content = if (isPreview || isLockScreenOnly() || showCard) {
+                    cardContent(this@CardWallpaperService, !isPreview && LockSession.isWaitingForNextLock(this@CardWallpaperService))
+                } else {
+                    null
+                }
                 renderer.draw(canvas, canvas.width, canvas.height, style, background, content)
             } finally {
                 holder.unlockCanvasAndPost(canvas)
             }
-        }
-
-        private fun currentContent(): CardContent {
-            val state = AnkiDroidHelper(this@CardWallpaperService).storedState
-                ?: return CardContent(getString(R.string.wallpaper_not_started))
-            // This session's card was answered: the next one comes at the next lock.
-            if (!isPreview && LockSession.isWaitingForNextLock(this@CardWallpaperService)) {
-                return CardContent(getString(R.string.next_card_at_next_unlock))
-            }
-            if (!state.hasCard()) {
-                return CardContent(getString(R.string.all_cards_done))
-            }
-            // A card stored by an older version may have nothing left to show (e.g. a sound-only question).
-            val question = CardText.clean(state.question).ifEmpty { return CardContent(getString(R.string.wallpaper_not_started)) }
-            return CardContent(question, state.deckName.replace("::", " › "), CardText.clean(state.answer))
         }
     }
 
@@ -303,18 +293,40 @@ class CardWallpaperService : WallpaperService() {
         private const val TAG = "CardWallpaper"
         private const val UNLOCK_CHECK_DELAY_MS = 500L
 
-        /** Whether the card wallpaper is set on the lock screen (Android 14+: lock only, or on both screens). */
+        /**
+         * Whether the card live wallpaper is shown on the lock screen (Android 14+: lock only, or on both screens).
+         * Not when the lock screen has its own picture, including the card picture of [LockScreenPicture].
+         */
         @JvmStatic
         fun isActive(context: Context): Boolean {
             val wallpaperManager = WallpaperManager.getInstance(context)
-            // On Android 14+ the lock screen can have its own live wallpaper; null means it shows the home one.
-            val lockWallpaper = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                wallpaperManager.getWallpaperInfo(WallpaperManager.FLAG_LOCK) ?: wallpaperManager.wallpaperInfo
+            // On Android 14+ the lock screen can have its own live wallpaper.
+            val lockLive = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                wallpaperManager.getWallpaperInfo(WallpaperManager.FLAG_LOCK)
             } else {
-                wallpaperManager.wallpaperInfo
+                null
             }
-            return lockWallpaper?.packageName == context.packageName &&
-                lockWallpaper.serviceName == CardWallpaperService::class.java.name
+            return LockScreenState.isLiveShown(
+                lockLiveIsOurs = lockLive?.let { isOurs(context, it) },
+                lockPictureId = wallpaperManager.getWallpaperId(WallpaperManager.FLAG_LOCK),
+                homeIsOurs = wallpaperManager.wallpaperInfo?.let { isOurs(context, it) } == true,
+            )
+        }
+
+        private fun isOurs(context: Context, info: WallpaperInfo): Boolean =
+            info.packageName == context.packageName && info.serviceName == CardWallpaperService::class.java.name
+
+        /** What the lock screen shows: the displayed card, or a message when there is none. */
+        fun cardContent(context: Context, waitingForNextLock: Boolean): CardContent {
+            val state = AnkiDroidHelper(context).storedState
+                ?: return CardContent(context.getString(R.string.wallpaper_not_started))
+            // This session's card was answered: the next one comes at the next lock.
+            if (waitingForNextLock) return CardContent(context.getString(R.string.next_card_at_next_unlock))
+            if (!state.hasCard()) return CardContent(context.getString(R.string.all_cards_done))
+            // A card stored by an older version may have nothing left to show (e.g. a sound-only question).
+            val question = CardText.clean(state.question)
+                .ifEmpty { return CardContent(context.getString(R.string.wallpaper_not_started)) }
+            return CardContent(question, state.deckName.replace("::", " › "), CardText.clean(state.answer))
         }
     }
 }

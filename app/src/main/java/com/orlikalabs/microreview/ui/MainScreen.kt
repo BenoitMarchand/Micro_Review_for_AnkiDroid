@@ -102,6 +102,7 @@ class MainScreenActions(
     val onGrantPermission: () -> Unit,
     val onRetry: () -> Unit,
     val onOpenWallpaperSettings: () -> Unit,
+    val onSetLockScreenPicture: () -> Unit,
     val onOpenSettings: () -> Unit,
     val onOpenNotificationSettings: () -> Unit,
     val onOpenBatterySettings: () -> Unit,
@@ -114,7 +115,7 @@ fun MainScreen(
     decks: List<DeckItem>,
     selectedDeckIds: List<Long>,
     currentCard: CurrentCard,
-    lockOnlyWallpaper: Boolean,
+    liveLockOnly: Boolean,
     setup: SetupStatus,
     actions: MainScreenActions,
 ) {
@@ -158,7 +159,7 @@ fun MainScreen(
                 buttonLabel = stringResource(R.string.retry),
                 onClick = actions.onRetry,
             )
-            ScreenState.Ready -> ReadyContent(padding, decks, selectedDeckIds, currentCard, lockOnlyWallpaper, setup, actions)
+            ScreenState.Ready -> ReadyContent(padding, decks, selectedDeckIds, currentCard, liveLockOnly, setup, actions)
         }
     }
 }
@@ -169,16 +170,17 @@ private fun ReadyContent(
     decks: List<DeckItem>,
     selectedDeckIds: List<Long>,
     currentCard: CurrentCard,
-    lockOnlyWallpaper: Boolean,
+    liveLockOnly: Boolean,
     setup: SetupStatus,
     actions: MainScreenActions,
 ) {
     var showWallpaperInstructions by rememberSaveable { mutableStateOf(false) }
     if (showWallpaperInstructions) {
         WallpaperInstructionsDialog(
-            lockOnlyWallpaper = lockOnlyWallpaper,
+            liveLockOnly = liveLockOnly,
             onDismiss = { showWallpaperInstructions = false },
             onOpenWallpaperSettings = actions.onOpenWallpaperSettings,
+            onSetPicture = actions.onSetLockScreenPicture,
         )
     }
     val decksById = decks.associateBy { it.id }
@@ -200,7 +202,7 @@ private fun ReadyContent(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (!setup.isComplete) {
-            item(key = "setup") { SetupCard(setup, lockOnlyWallpaper, onSetWallpaper = { showWallpaperInstructions = true }, actions) }
+            item(key = "setup") { SetupCard(setup, liveLockOnly, onSetWallpaper = { showWallpaperInstructions = true }, actions) }
         }
         if (setup.wallpaperActive) {
             item(key = "wallpaper-configured") { WallpaperConfigured() }
@@ -384,7 +386,7 @@ data class SetupStatus(
 }
 
 @Composable
-private fun SetupCard(setup: SetupStatus, lockOnlyWallpaper: Boolean, onSetWallpaper: () -> Unit, actions: MainScreenActions) {
+private fun SetupCard(setup: SetupStatus, liveLockOnly: Boolean, onSetWallpaper: () -> Unit, actions: MainScreenActions) {
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
@@ -400,7 +402,7 @@ private fun SetupCard(setup: SetupStatus, lockOnlyWallpaper: Boolean, onSetWallp
                 SetupItem(R.string.setup_notifications, R.string.setup_notifications_detail, actions.onOpenNotificationSettings)
             }
             if (!setup.wallpaperActive) {
-                SetupItem(R.string.setup_wallpaper, WallpaperSetup.setupDetail(lockOnlyWallpaper), onSetWallpaper)
+                SetupItem(R.string.setup_wallpaper, WallpaperSetup.setupDetail(liveLockOnly), onSetWallpaper)
             }
             if (!setup.backgroundAllowed) {
                 SetupItem(R.string.setup_battery, R.string.setup_battery_detail, actions.onOpenBatterySettings)
