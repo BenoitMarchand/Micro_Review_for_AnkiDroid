@@ -51,7 +51,10 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.findByName("upload")
-            isMinifyEnabled = false
+            // R8: Compose is shipped unoptimized and relies on it for its runtime performance. The bundle carries the
+            // mapping file (the Play Console deobfuscates crashes with it); release.yml also attaches it to the release.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

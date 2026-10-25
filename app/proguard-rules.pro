@@ -1,21 +1,11 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# R8 rules of the release build, on top of proguard-android-optimize.txt and the libraries' own rules.
+# The classes named in the manifest (activities, receivers, services, widget provider) are kept by AGP. Nothing
+# uses reflection on the app's classes.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# WorkManager's Room database is created by reflection (Room.databaseBuilder): without this, its constructor is
+# removed and the app crashes at start ("NoSuchMethodException: WorkDatabase_Impl.<init>").
+-keep class * extends androidx.room.RoomDatabase { <init>(); }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
-
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Line numbers in the stack traces of the Play Console's crash reports, with the source file names hidden.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

@@ -109,6 +109,7 @@ jobs:
         ORG_GRADLE_PROJECT_microreviewUploadStoreFile="$KEYSTORE" ./gradlew bundleRelease
         rm -f "$KEYSTORE"
         echo "aab=${{ env.main_project_module }}/build/outputs/bundle/release/app-release.aab" >> "$GITHUB_OUTPUT"
+        echo "mapping=${{ env.main_project_module }}/build/outputs/mapping/release/mapping.txt" >> "$GITHUB_OUTPUT"
 
     - name: Commit and tag (and merge into main for a final release)
       run: |
@@ -139,6 +140,10 @@ jobs:
           AAB="Micro-Review-for-AnkiDroid-v$VERSION.aab"
           cp "${{ steps.bundle.outputs.aab }}" "$AAB"
           FILES+=("$AAB")
+          # R8's mapping file, to read the release build's stack traces (the bundle also carries it for Play).
+          MAPPING="Micro-Review-for-AnkiDroid-v$VERSION-mapping.txt"
+          cp "${{ steps.bundle.outputs.mapping }}" "$MAPPING"
+          FILES+=("$MAPPING")
         fi
         PREVIOUS=$(git tag --list 'v*' --sort=-v:refname | grep -v -e '-rc' -e "^v$VERSION\$" | head -n 1 || true)
         ARGS=(--title "v$VERSION" --generate-notes)
