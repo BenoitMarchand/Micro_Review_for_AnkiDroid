@@ -1,19 +1,25 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Backup and device transfer rules from Android 12 (backup_rules.xml up to Android 11): only the user's
+    choices, not the displayed card or the session state. Keep the list in sync with backup_rules.xml.
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <include domain="sharedpref" path="com.ankidroid.companion.deck_selection.xml" />
+        <include domain="sharedpref" path="com.ankidroid.companion.review_settings.xml" />
+        <include domain="sharedpref" path="com.ankidroid.companion.scheduled_review_settings.xml" />
+        <include domain="sharedpref" path="com.ankidroid.companion.wallpaper_style.xml" />
+        <include domain="sharedpref" path="com.ankidroid.companion.widget_style.xml" />
+        <include domain="file" path="wallpaper_background.jpg" />
+        <include domain="file" path="widget_background.jpg" />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <include domain="sharedpref" path="com.ankidroid.companion.deck_selection.xml" />
+        <include domain="sharedpref" path="com.ankidroid.companion.review_settings.xml" />
+        <include domain="sharedpref" path="com.ankidroid.companion.scheduled_review_settings.xml" />
+        <include domain="sharedpref" path="com.ankidroid.companion.wallpaper_style.xml" />
+        <include domain="sharedpref" path="com.ankidroid.companion.widget_style.xml" />
+        <include domain="file" path="wallpaper_background.jpg" />
+        <include domain="file" path="widget_background.jpg" />
     </device-transfer>
-    -->
 </data-extraction-rules>
