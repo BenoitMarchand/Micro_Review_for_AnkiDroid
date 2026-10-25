@@ -18,6 +18,10 @@ object WallpaperSetup {
     /** Android 14+ can set a live wallpaper on the lock screen only. */
     val lockOnly: Boolean get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
 
+    /** Why to set the card wallpaper; before Android 14, also that the lock screen only needs Android 14. */
+    fun setupDetail(lockOnlyWallpaper: Boolean): Int =
+        if (lockOnlyWallpaper) R.string.setup_wallpaper_detail else R.string.setup_wallpaper_detail_before_14
+
     fun openSettings(context: Context) {
         // Only the system wallpaper app can apply a live wallpaper to the lock screen alone, so the user picks it
         // there. ACTION_CHANGE_LIVE_WALLPAPER would apply it to both screens.

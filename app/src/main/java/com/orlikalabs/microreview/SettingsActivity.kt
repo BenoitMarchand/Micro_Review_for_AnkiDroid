@@ -257,7 +257,7 @@ private fun SettingsScreen(
             }
 
             SettingsGroup(Icons.Filled.Lock, stringResource(R.string.wallpaper_content)) {
-                WallpaperStatus(wallpaperActive, onSetWallpaper = { showWallpaperInstructions = true })
+                WallpaperStatus(wallpaperActive, WallpaperSetup.lockOnly, onSetWallpaper = { showWallpaperInstructions = true })
                 Section(stringResource(R.string.review_mode)) {
                     val modes = ReviewSettings.ReviewMode.entries
                     val labels = listOf(R.string.review_mode_notification, R.string.review_mode_open_after_unlock)
@@ -788,15 +788,25 @@ private fun SettingsGroup(icon: ImageVector, title: String, content: @Composable
 
 /**
  * Whether the card wallpaper is set on the lock screen. If not, a warning and a button to the steps to set it:
- * the lock screen content and style only show with it.
+ * the lock screen content and style only show with it. Before Android 14, also that the lock screen only needs it.
  */
 @Composable
-private fun WallpaperStatus(wallpaperActive: Boolean, onSetWallpaper: () -> Unit) {
+private fun WallpaperStatus(wallpaperActive: Boolean, lockOnlyWallpaper: Boolean, onSetWallpaper: () -> Unit) {
     if (wallpaperActive) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(R.string.wallpaper_status_active), style = MaterialTheme.typography.bodyMedium)
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.wallpaper_status_active), style = MaterialTheme.typography.bodyMedium)
+            }
+            if (!lockOnlyWallpaper) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    stringResource(R.string.wallpaper_lock_only_needs_android_14),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         return
     }
@@ -813,7 +823,7 @@ private fun WallpaperStatus(wallpaperActive: Boolean, onSetWallpaper: () -> Unit
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                stringResource(R.string.setup_wallpaper_detail),
+                stringResource(WallpaperSetup.setupDetail(lockOnlyWallpaper)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onErrorContainer,
             )
