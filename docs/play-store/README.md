@@ -120,6 +120,8 @@ The release build reads it from Gradle properties; without them, it is unsigned:
 
 - **Locally**: put them in `~/.gradle/gradle.properties` (outside the repository, seen by every worktree), then `./gradlew bundleRelease`: `app/build/outputs/bundle/release/app-release.aab`.
 - **In CI** (`release.yml`, final stage): repository secrets `UPLOAD_KEYSTORE_BASE64` (the `.jks` file in base64: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("<path>.jks"))` in PowerShell) and `UPLOAD_KEYSTORE_PASSWORD`. Without them the release goes on, with a warning and no bundle.
+
+The release build is shrunk and optimized by **R8** (`isMinifyEnabled`, `isShrinkResources`; rules in `app/proguard-rules.pro`). The device tests run on the debug build, so they don't cover it: before a final release, install the release build on an emulator and go through the main screen, Settings, a notification answer and the hourly worker. The AAB carries R8's mapping file, which the Play Console uses to deobfuscate crash reports; `release.yml` also attaches it to the GitHub release (`…-mapping.txt`).
 - [x] **Application ID**: `com.orlikalabs.microreview`, on the developer's own domain, as the AnkiDroid team asked (an ID under `com.ankidroid` would suggest an app maintained by them; they agreed to the app name). The Kotlin package is the same. It can't be changed once published. The listing must not suggest an official AnkiDroid app: no AnkiDroid logo, and the disclaimer at the end of the description.
 - [ ] **Developer account**: a personal account created after November 2023 must run a closed test with at least 12 testers for 14 days before applying for production (check the current rule in the Play Console).
 - [x] Feature graphic made, screenshots generated.
