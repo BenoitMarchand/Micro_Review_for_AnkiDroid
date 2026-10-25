@@ -5,8 +5,10 @@ import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.Matrix
 import android.net.Uri
 import android.util.Log
+import androidx.exifinterface.media.ExifInterface
 import java.io.File
 
 /**
@@ -118,13 +120,46 @@ data class WallpaperStyle(
                 val bitmap = context.contentResolver.openInputStream(uri)?.use {
                     BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sampleSize })
                 } ?: return false
-                backgroundFile(context, target).outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 90, it) }
-                bitmap.recycle()
+                // The JPEG written below has no orientation tag: the pixels are turned upright first.
+                val upright = applyOrientation(bitmap, readOrientation(context, uri))
+                backgroundFile(context, target).outputStream().use { upright.compress(Bitmap.CompressFormat.JPEG, 90, it) }
+                upright.recycle()
                 true
             } catch (e: Exception) {
                 Log.e("WallpaperStyle", "Could not import the background image", e)
                 false
             }
+        }
+
+        /**
+         * The EXIF orientation of the picture. Many camera photos are stored sideways with this tag instead of
+         * rotated pixels, and `BitmapFactory` ignores it.
+         */
+        private fun readOrientation(context: Context, uri: Uri): Int = try {
+            context.contentResolver.openInputStream(uri)?.use {
+                ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+            } ?: ExifInterface.ORIENTATION_NORMAL
+        } catch (e: Exception) {
+            Log.w("WallpaperStyle", "Could not read the picture's orientation", e)
+            ExifInterface.ORIENTATION_NORMAL
+        }
+
+        /** The bitmap turned as its EXIF [orientation] says. Recycles [bitmap] if it returns a new one. */
+        private fun applyOrientation(bitmap: Bitmap, orientation: Int): Bitmap {
+            val matrix = Matrix()
+            when (orientation) {
+                ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.setScale(-1f, 1f)
+                ExifInterface.ORIENTATION_ROTATE_180 -> matrix.setRotate(180f)
+                ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.setScale(1f, -1f)
+                ExifInterface.ORIENTATION_TRANSPOSE -> matrix.apply { setRotate(90f); postScale(-1f, 1f) }
+                ExifInterface.ORIENTATION_ROTATE_90 -> matrix.setRotate(90f)
+                ExifInterface.ORIENTATION_TRANSVERSE -> matrix.apply { setRotate(-90f); postScale(-1f, 1f) }
+                ExifInterface.ORIENTATION_ROTATE_270 -> matrix.setRotate(-90f)
+                else -> return bitmap
+            }
+            val turned = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+            if (turned !== bitmap) bitmap.recycle()
+            return turned
         }
 
         fun removeBackground(context: Context, target: Target = Target.LOCK_SCREEN) {

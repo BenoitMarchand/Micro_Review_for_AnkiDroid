@@ -23,7 +23,7 @@ private class Library(val name: String, val license: String)
 /** The libraries in the APK. Update it when a dependency is added or removed in `app/build.gradle.kts`. */
 private val LIBRARIES = listOf(
     Library("AnkiDroid API (FlashCardsContract, AddContentApi)", "GNU Lesser General Public License v3.0"),
-    Library("Android Jetpack: Core, Activity, Lifecycle, WorkManager", "Apache License 2.0"),
+    Library("Android Jetpack: Core, Activity, ExifInterface, Lifecycle, WorkManager", "Apache License 2.0"),
     Library("Jetpack Compose: UI, Material 3, Material Icons", "Apache License 2.0"),
     Library("Kotlin standard library, kotlinx.coroutines", "Apache License 2.0"),
 )
