@@ -65,13 +65,20 @@ class ContentProviderAnkiData(private val context: Context) : AnkiDataSource {
         ContextCompat.checkSelfPermission(context, AnkiDroidContract.READ_WRITE_PERMISSION) == PackageManager.PERMISSION_GRANTED
 
     override fun deckNames(): Map<Long, String>? {
+        if (!isPermissionGranted()) return null
         val projection = arrayOf(AnkiDroidContract.Deck.DECK_ID, AnkiDroidContract.Deck.DECK_NAME)
-        return context.contentResolver.query(AnkiDroidContract.Deck.CONTENT_ALL_URI, projection, null, null, null)?.use { cursor ->
-            val idColumn = cursor.getColumnIndexOrThrow(AnkiDroidContract.Deck.DECK_ID)
-            val nameColumn = cursor.getColumnIndexOrThrow(AnkiDroidContract.Deck.DECK_NAME)
-            val decks = HashMap<Long, String>()
-            while (cursor.moveToNext()) decks[cursor.getLong(idColumn)] = cursor.getString(nameColumn)
-            decks
+        return try {
+            context.contentResolver.query(AnkiDroidContract.Deck.CONTENT_ALL_URI, projection, null, null, null)?.use { cursor ->
+                val idColumn = cursor.getColumnIndexOrThrow(AnkiDroidContract.Deck.DECK_ID)
+                val nameColumn = cursor.getColumnIndexOrThrow(AnkiDroidContract.Deck.DECK_NAME)
+                val decks = HashMap<Long, String>()
+                while (cursor.moveToNext()) decks[cursor.getLong(idColumn)] = cursor.getString(nameColumn)
+                decks
+            }
+        } catch (e: RuntimeException) {
+            // Permission revoked, API turned off, collection not open, AnkiDroid being updated...
+            Log.e(TAG, "Could not read the decks", e)
+            null
         }
     }
 

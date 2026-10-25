@@ -73,6 +73,7 @@ sealed interface ScreenState {
     data object Loading : ScreenState
     data object ApiUnavailable : ScreenState
     data object PermissionMissing : ScreenState
+    data object LoadFailed : ScreenState
     data object Ready : ScreenState
 }
 
@@ -149,6 +150,13 @@ fun MainScreen(
                 message = stringResource(R.string.error_permission),
                 buttonLabel = stringResource(R.string.grant_permission),
                 onClick = actions.onGrantPermission,
+            )
+            ScreenState.LoadFailed -> MessageScreen(
+                padding = padding,
+                title = stringResource(R.string.error_load_failed_title),
+                message = stringResource(R.string.error_load_failed),
+                buttonLabel = stringResource(R.string.retry),
+                onClick = actions.onRetry,
             )
             ScreenState.Ready -> ReadyContent(padding, decks, selectedDeckIds, currentCard, lockOnlyWallpaper, setup, actions)
         }

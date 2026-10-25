@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -36,6 +37,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val DECK_CHANGE_DEBOUNCE_MS = 800L
+private const val TAG = "BackgroundService"
 
 class MainActivity : ComponentActivity() {
     private var screenState by mutableStateOf<ScreenState>(ScreenState.Loading)
@@ -123,10 +125,19 @@ class MainActivity : ComponentActivity() {
             return
         }
         lifecycleScope.launch {
-            val loaded = withContext(Dispatchers.IO) {
-                // The card may have been reviewed or changed in AnkiDroid since it was shown.
-                CardStateController.syncWithAnkiDroid(applicationContext)
-                loadDecks()
+            val loaded = try {
+                withContext(Dispatchers.IO) {
+                    // The card may have been reviewed or changed in AnkiDroid since it was shown.
+                    CardStateController.syncWithAnkiDroid(applicationContext)
+                    loadDecks()
+                }
+            } catch (e: RuntimeException) {
+                Log.e(TAG, "Could not load the decks", e)
+                null
+            }
+            if (loaded == null) {
+                screenState = ScreenState.LoadFailed
+                return@launch
             }
             decks.clear()
             decks.addAll(loaded.decks)
@@ -139,9 +150,10 @@ class MainActivity : ComponentActivity() {
 
     private class LoadedData(val decks: List<DeckItem>, val selectedDeckIds: List<Long>, val currentCard: CurrentCard)
 
-    private fun loadDecks(): LoadedData {
+    /** The decks and the displayed card, or null if AnkiDroid doesn't give its decks. */
+    private fun loadDecks(): LoadedData? {
         val anki = AnkiDroidHelper(this)
-        val names = anki.deckNames ?: emptyMap()
+        val names = anki.deckNames ?: return null
         val counts = anki.getDeckCounts()
         val decks = names.map { (id, name) ->
             val count = counts[id]
@@ -191,7 +203,13 @@ class MainActivity : ComponentActivity() {
         deckChangeSync?.cancel()
         deckChangeSync = lifecycleScope.launch {
             delay(DECK_CHANGE_DEBOUNCE_MS)
-            val action = withContext(Dispatchers.IO) { CardStateController.syncWithAnkiDroid(applicationContext) }
+            val action = try {
+                withContext(Dispatchers.IO) { CardStateController.syncWithAnkiDroid(applicationContext) }
+            } catch (e: RuntimeException) {
+                Log.e(TAG, "Could not sync with AnkiDroid", e)
+                null
+            }
+            // A failed sync goes through refresh() too, which shows the error screen if AnkiDroid still fails.
             if (action != CardSync.Action.NONE) refresh()
         }
     }

@@ -447,6 +447,21 @@ class ReviewScenariosTest {
         }
     }
 
+    @Test
+    fun mainScreen_deckQueryFails_showsRetryInsteadOfCrashing() {
+        anki.deck(1, "Spanish", FakeAnkiDataSource.Card(10, question = "Hola"))
+        select(1)
+        anki.deckQueriesFail = true
+
+        ActivityScenario.launch(MainActivity::class.java).use {
+            waitForText(context.getString(R.string.error_load_failed_title))
+
+            anki.deckQueriesFail = false
+            compose.onNodeWithText(context.getString(R.string.retry)).performClick()
+            waitForText("Hola")
+        }
+    }
+
     /** The review screen loads its card off the main thread: wait for it to show up. */
     private fun waitForText(text: String) {
         compose.waitUntil(5_000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
