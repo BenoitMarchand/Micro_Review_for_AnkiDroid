@@ -132,6 +132,8 @@
     <string name="setup_battery">Keep checking for new cards</string>
     <string name="setup_battery_detail">Background activity is restricted for this app, so new cards don\'t show up. Set its battery usage to Optimized or Unrestricted.</string>
     <string name="setup_fix">Fix</string>
+    <string name="setup_wallpaper_detail_before_14">Set Micro Review for AnkiDroid as your wallpaper. On the lock screen only, it needs Android 14 or later for now: on this version, it also replaces your home screen wallpaper. It is also needed to show the card only while the phone is locked, one card per unlock; without it, the notification stays visible.</string>
+    <string name="wallpaper_lock_only_needs_android_14">The card wallpaper is meant for the lock screen only, which needs Android 14 or later for now. On this version, it is also your home screen wallpaper, and some devices keep their own lock screen picture (for example Magazine unlock).</string>
     <string name="wallpaper_configured">Lock screen wallpaper configured</string>
     <string name="lock_screen_sensitive_tip">Answer hidden on the lock screen? Allow sensitive notifications in your phone\'s notification settings.</string>
 
@@ -158,5 +160,5 @@
     <string name="set_lock_wallpaper">Set lock screen wallpaper</string>
     <string name="open_wallpaper_settings">Open wallpaper settings</string>
     <string name="set_lock_wallpaper_instructions">In the wallpaper settings:\n\n1. Select the Lock screen preview (not Home screen).\n2. Open the wallpaper list, choose Live wallpapers, then Micro Review for AnkiDroid.\n3. When asked where to apply it, choose Lock screen only.\n\nYour home screen wallpaper stays unchanged.</string>
-    <string name="set_lock_wallpaper_instructions_both_screens">On this Android version, a live wallpaper is applied to both the home and the lock screen. The card is only shown while the phone is locked; the home screen will show a plain dark background.\n\nIn the wallpaper settings, open Live wallpapers and choose Micro Review for AnkiDroid.</string>
+    <string name="set_lock_wallpaper_instructions_both_screens">The card wallpaper is meant for the lock screen only, which needs Android 14 or later for now.\n\nOn this Android version, a live wallpaper is applied to both the home and the lock screen. The card is only shown while the phone is locked; the home screen will show a plain dark background. Some devices keep their own lock screen picture (for example Magazine unlock): turn it off in the system settings to see the card.\n\nIn the wallpaper settings, open Live wallpapers and choose Micro Review for AnkiDroid.</string>
 </resources>

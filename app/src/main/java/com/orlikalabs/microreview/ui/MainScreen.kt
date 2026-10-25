@@ -200,7 +200,7 @@ private fun ReadyContent(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (!setup.isComplete) {
-            item(key = "setup") { SetupCard(setup, onSetWallpaper = { showWallpaperInstructions = true }, actions) }
+            item(key = "setup") { SetupCard(setup, lockOnlyWallpaper, onSetWallpaper = { showWallpaperInstructions = true }, actions) }
         }
         if (setup.wallpaperActive) {
             item(key = "wallpaper-configured") { WallpaperConfigured() }
@@ -384,7 +384,7 @@ data class SetupStatus(
 }
 
 @Composable
-private fun SetupCard(setup: SetupStatus, onSetWallpaper: () -> Unit, actions: MainScreenActions) {
+private fun SetupCard(setup: SetupStatus, lockOnlyWallpaper: Boolean, onSetWallpaper: () -> Unit, actions: MainScreenActions) {
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
@@ -400,7 +400,7 @@ private fun SetupCard(setup: SetupStatus, onSetWallpaper: () -> Unit, actions: M
                 SetupItem(R.string.setup_notifications, R.string.setup_notifications_detail, actions.onOpenNotificationSettings)
             }
             if (!setup.wallpaperActive) {
-                SetupItem(R.string.setup_wallpaper, R.string.setup_wallpaper_detail, onSetWallpaper)
+                SetupItem(R.string.setup_wallpaper, WallpaperSetup.setupDetail(lockOnlyWallpaper), onSetWallpaper)
             }
             if (!setup.backgroundAllowed) {
                 SetupItem(R.string.setup_battery, R.string.setup_battery_detail, actions.onOpenBatterySettings)
