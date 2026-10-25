@@ -5,7 +5,7 @@ Everything needed to publish Micro Review for AnkiDroid on the Play Store: the l
 | File | Content |
 |---|---|
 | [listing.md](listing.md) | App name, short and full description, release notes, category |
-| [privacy-policy.md](privacy-policy.md) | Privacy policy (the Play Console needs its public URL) |
+| [privacy-policy.md](privacy-policy.md) | Privacy policy, published on GitHub Pages by `.github/workflows/pages.yml` when it changes on `develop`: `https://<owner>.github.io/<repository>/privacy-policy.html` (the date of its last change is added) |
 | this file | Assets, Play Console forms, checklist |
 
 ## Generating the assets
@@ -82,7 +82,7 @@ The lock screen shows "Charged" because the script simulates a charger to keep t
 
 ### App content
 
-- Privacy policy: public URL of [privacy-policy.md](privacy-policy.md) (its GitHub page, or GitHub Pages).
+- Privacy policy: `https://<owner>.github.io/<repository>/privacy-policy.html` (GitHub Pages, from [privacy-policy.md](privacy-policy.md)).
 - Ads: **no**. App access: **all functionality available without special access** (no account), but AnkiDroid is needed: say so in the instructions for reviewers.
 - Content rating: questionnaire, category "Reference, news or educational"; no violence, no user-generated content shared, no purchases → rated for everyone.
 - Target audience: 13 and over (not designed for children, to avoid the Families policy requirements).
@@ -123,4 +123,5 @@ The release build reads it from Gradle properties; without them, it is unsigned:
 - [x] **Application ID**: `com.orlikalabs.microreview`, on the developer's own domain, as the AnkiDroid team asked (an ID under `com.ankidroid` would suggest an app maintained by them; they agreed to the app name). The Kotlin package is the same. It can't be changed once published. The listing must not suggest an official AnkiDroid app: no AnkiDroid logo, and the disclaimer at the end of the description.
 - [ ] **Developer account**: a personal account created after November 2023 must run a closed test with at least 12 testers for 14 days before applying for production (check the current rule in the Play Console).
 - [x] Feature graphic made, screenshots generated.
-- [ ] Privacy policy published, Data safety and App content forms filled.
+- [x] Privacy policy published (GitHub Pages).
+- [ ] Data safety and App content forms filled.

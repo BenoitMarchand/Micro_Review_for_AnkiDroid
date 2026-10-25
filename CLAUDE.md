@@ -33,6 +33,7 @@ Micro Review for AnkiDroid is a small Android app that lets the user review Anki
 - `.github/workflows/release.yml`: started **on request only** (`gh workflow run release.yml -f stage=rc|final`, or Actions › Release), in two stages. `rc` (default): a **release candidate** for users to validate: the next **minor** version with `-rc1` (`0.3.3` → `0.4.0-rc1`; again → `-rc2`), committed and tagged `vX.Y.0-rcN` on `develop`, the **debug** APK published as a GitHub **pre-release**; `main` is not changed. `final`: once validated, drops the suffix (`0.4.0-rc2` → `0.4.0`), merges `develop` into `main`, tags `vX.Y.0` and publishes the latest GitHub release, with the AAB signed with the upload key for the Play Store (secrets; see `docs/play-store/README.md`). Issues closed by "Closes #N" in commits are only closed when they reach `main`, i.e. at the final release.
 - `.github/workflows/develop.yml`: builds (lint + unit tests) and uploads a debug APK on pushes to `develop` and on pull requests to `develop` or `main`; on pull requests it also runs the device tests on an emulator.
 - `release.yml` only tags when the device tests pass on an emulator.
+- `.github/workflows/pages.yml`: publishes `docs/play-store/privacy-policy.md` on GitHub Pages (the Play Console's privacy policy URL) when it changes on `develop`, or on request.
 - After a merge or a release, pull `develop` before branching: the bot commits the version bump there.
 - The release keystore path is git-ignored; never commit keystores or signing credentials.
 
