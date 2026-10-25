@@ -43,9 +43,19 @@ class FakeAnkiDataSource : AnkiDataSource {
 
     override fun isPermissionGranted() = true
 
-    override fun deckNames(): Map<Long, String> = synchronized(this) { decks.toMap() }
+    /** Whether the deck queries throw, like a provider error the real source doesn't catch. */
+    @Volatile
+    var deckQueriesFail = false
 
-    override fun deckName(deckId: Long): String? = synchronized(this) { decks[deckId] }
+    override fun deckNames(): Map<Long, String> = synchronized(this) {
+        if (deckQueriesFail) throw IllegalStateException("Collection not open")
+        decks.toMap()
+    }
+
+    override fun deckName(deckId: Long): String? = synchronized(this) {
+        if (deckQueriesFail) throw IllegalStateException("Collection not open")
+        decks[deckId]
+    }
 
     /** Every due card is counted as a review card. */
     override fun deckCounts(): Map<Long, IntArray> = synchronized(this) {

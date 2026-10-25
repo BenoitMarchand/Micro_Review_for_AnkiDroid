@@ -60,6 +60,8 @@
     <string name="error_api_unavailable">Either AnkiDroid is not installed, or its API is disabled. Enable it in AnkiDroid: Settings › Advanced › Enable AnkiDroid API.</string>
     <string name="error_permission_title">Permission needed</string>
     <string name="error_permission">Micro Review for AnkiDroid needs access to your AnkiDroid cards to show them.</string>
+    <string name="error_load_failed_title">Can\'t read your decks</string>
+    <string name="error_load_failed">AnkiDroid didn\'t give its decks: it may be updating, or its collection may be closed. Open AnkiDroid, then retry.</string>
     <string name="grant_permission">Grant access</string>
     <string name="retry">Retry</string>
     <string name="notification_permission_denied">Notifications are disabled: cards can\'t be reviewed from the notification. Enable them in the app\'s system settings.</string>
