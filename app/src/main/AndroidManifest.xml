@@ -8,6 +8,15 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- "Open after unlock": lets the lock screen wallpaper open the review screen (background activity start). -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- The card picture on the lock screen, where the live wallpaper can't be lock only (LockScreenPicture). -->
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
+
+    <queries>
+        <!-- Whether "Wallpaper & style" exists, to set the live wallpaper on the lock screen only (WallpaperSetup). -->
+        <intent>
+            <action android:name="android.settings.WALLPAPER_SETTINGS" />
+        </intent>
+    </queries>
 
     <uses-feature android:name="android.software.live_wallpaper" android:required="false" />
     <application

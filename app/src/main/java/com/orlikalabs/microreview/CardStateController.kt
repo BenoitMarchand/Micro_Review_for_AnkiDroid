@@ -144,6 +144,7 @@ object CardStateController {
         Log.i(TAG, "next card found in deck ${card.deckId}")
         anki.storeState(card.deckId, card)
         StandardCardWidget.updateAll(context)
+        LockScreenPicture.update(context)
         ScheduledReview.onCardShown(context, card)
         if (post(context, card, card.deckName, silent)) {
             ReviewTimer.onCardShown(context, CardSync.CardKey(card.noteID, card.cardOrd))
@@ -157,6 +158,7 @@ object CardStateController {
         emptyCard.noteID = -1
         anki.storeState(deckIds.firstOrNull() ?: -1L, emptyCard)
         StandardCardWidget.updateAll(context)
+        LockScreenPicture.update(context)
         ScheduledReview.cancel(context)
         post(context, null, "", silent)
     }
@@ -166,6 +168,7 @@ object CardStateController {
         Log.i(TAG, "no deck selected, stopping")
         anki.clearState()
         StandardCardWidget.updateAll(context)
+        LockScreenPicture.update(context)
         ScheduledReview.cancel(context)
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.cancel(Notifications.NOTIFICATION_ID)

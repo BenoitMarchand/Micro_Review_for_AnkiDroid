@@ -72,6 +72,7 @@ class MainActivity : ComponentActivity() {
             onGrantPermission = ::requestMissingPermissions,
             onRetry = ::refresh,
             onOpenWallpaperSettings = { WallpaperSetup.openSettings(this) },
+            onSetLockScreenPicture = { lifecycleScope.launch { if (WallpaperSetup.setPicture(this@MainActivity)) refresh() } },
             onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
             onOpenNotificationSettings = ::openNotificationSettings,
             onOpenBatterySettings = ::openBatterySettings,
@@ -83,7 +84,7 @@ class MainActivity : ComponentActivity() {
                     decks = decks,
                     selectedDeckIds = selectedDeckIds,
                     currentCard = currentCard,
-                    lockOnlyWallpaper = WallpaperSetup.lockOnly,
+                    liveLockOnly = WallpaperSetup.liveLockOnly(this),
                     setup = setupStatus,
                     actions = actions,
                 )
@@ -220,7 +221,8 @@ class MainActivity : ComponentActivity() {
         val notificationsEnabled = NotificationManagerCompat.from(this).areNotificationsEnabled() &&
             channel?.importance != NotificationManager.IMPORTANCE_NONE
 
-        val wallpaperActive = CardWallpaperService.isActive(this)
+        // The live wallpaper or the card picture.
+        val wallpaperActive = CardWallpaperService.isActive(this) || LockScreenPicture.isActive(this)
 
         return SetupStatus(
             notificationsEnabled = notificationsEnabled,

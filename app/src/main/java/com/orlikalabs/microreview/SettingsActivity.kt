@@ -115,8 +115,11 @@ import kotlin.math.roundToInt
  * widget look. Opened from the main screen and from the system wallpaper picker.
  */
 class SettingsActivity : ComponentActivity() {
-    /** Read again on resume: the user may come back from the wallpaper settings. */
-    private var wallpaperActive by mutableStateOf(false)
+    /** How the card reaches the lock screen. Read again on resume: the user may come back from the wallpaper settings. */
+    private var lockScreenMode by mutableStateOf(LockScreenState.Mode.NONE)
+
+    /** The card live wallpaper is the home screen wallpaper (tried before the card picture). */
+    private var liveOnHome by mutableStateOf(false)
 
     /** "Display over other apps" allowed, checked again when coming back from the system settings. */
     private var canOpenAfterUnlock by mutableStateOf(false)
@@ -127,7 +130,9 @@ class SettingsActivity : ComponentActivity() {
         setContent {
             AnkiNotificationsTheme {
                 SettingsScreen(
-                    wallpaperActive = wallpaperActive,
+                    lockScreenMode = lockScreenMode,
+                    liveOnHome = liveOnHome,
+                    onLockScreenChanged = ::readLockScreenMode,
                     canOpenAfterUnlock = canOpenAfterUnlock,
                     onAllowOpenAfterUnlock = ::openOverlaySettings,
                     onBack = ::finish,
@@ -138,8 +143,13 @@ class SettingsActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        wallpaperActive = CardWallpaperService.isActive(this)
+        readLockScreenMode()
         canOpenAfterUnlock = ReviewSettings.canOpenAfterUnlock(this)
+    }
+
+    private fun readLockScreenMode() {
+        lockScreenMode = LockScreenState.mode(CardWallpaperService.isActive(this), LockScreenPicture.isActive(this))
+        liveOnHome = CardWallpaperService.isHomeWallpaper(this)
     }
 
     private fun openOverlaySettings() {
@@ -161,12 +171,18 @@ private val TEXT_COLORS = listOf(0xFFFFFFFF.toInt(), 0xFF000000.toInt(), 0xFFFFE
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsScreen(
-    wallpaperActive: Boolean,
+    lockScreenMode: LockScreenState.Mode,
+    liveOnHome: Boolean,
+    onLockScreenChanged: () -> Unit,
     canOpenAfterUnlock: Boolean,
     onAllowOpenAfterUnlock: () -> Unit,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    // The lock session (one card per unlock, rotation, open after unlock) needs the live wallpaper's screen events.
+    val wallpaperActive = lockScreenMode == LockScreenState.Mode.LIVE
+    val liveLockOnly = remember { WallpaperSetup.liveLockOnly(context) }
     var severalInARow by remember { mutableStateOf(ReviewSettings.severalInARow(context)) }
     var rotateOnUnlock by remember { mutableStateOf(ReviewSettings.rotateOnUnlock(context)) }
     var reviewMode by remember { mutableStateOf(ReviewSettings.reviewMode(context)) }
@@ -177,9 +193,15 @@ private fun SettingsScreen(
     var showWallpaperInstructions by rememberSaveable { mutableStateOf(false) }
     if (showWallpaperInstructions) {
         WallpaperInstructionsDialog(
-            lockOnlyWallpaper = WallpaperSetup.lockOnly,
+            liveLockOnly = liveLockOnly,
             onDismiss = { showWallpaperInstructions = false },
             onOpenWallpaperSettings = { WallpaperSetup.openSettings(context) },
+            onSetPicture = {
+                scope.launch {
+                    WallpaperSetup.setPicture(context)
+                    onLockScreenChanged()
+                }
+            },
         )
     }
     var showLicenses by rememberSaveable { mutableStateOf(false) }
@@ -195,6 +217,8 @@ private fun SettingsScreen(
         WallpaperStyle.save(context, newStyle, target)
         // The wallpaper redraws itself when its style changes; the widget is redrawn by the app.
         if (target == WallpaperStyle.Target.WIDGET) StandardCardWidget.updateAll(context)
+        // The card picture is drawn by the app too.
+        if (target == WallpaperStyle.Target.LOCK_SCREEN) LockScreenPicture.update(context)
     }
 
     Scaffold(
@@ -257,7 +281,17 @@ private fun SettingsScreen(
             }
 
             SettingsGroup(Icons.Filled.Lock, stringResource(R.string.wallpaper_content)) {
-                WallpaperStatus(wallpaperActive, WallpaperSetup.lockOnly, onSetWallpaper = { showWallpaperInstructions = true })
+                WallpaperStatus(
+                    mode = lockScreenMode,
+                    liveLockOnly = liveLockOnly,
+                    liveOnHome = liveOnHome,
+                    onSetWallpaper = { showWallpaperInstructions = true },
+                    onOpenWallpaperSettings = { WallpaperSetup.openSettings(context) },
+                    onStopPicture = {
+                        LockScreenPicture.disable(context)
+                        onLockScreenChanged()
+                    },
+                )
                 Section(stringResource(R.string.review_mode)) {
                     val modes = ReviewSettings.ReviewMode.entries
                     val labels = listOf(R.string.review_mode_notification, R.string.review_mode_open_after_unlock)
@@ -787,25 +821,52 @@ private fun SettingsGroup(icon: ImageVector, title: String, content: @Composable
 }
 
 /**
- * Whether the card wallpaper is set on the lock screen. If not, a warning and a button to the steps to set it:
- * the lock screen content and style only show with it. Before Android 14, also that the lock screen only needs it.
+ * How the card reaches the lock screen: the live wallpaper (also on the home screen where it can't be lock only),
+ * the card picture (with a tip if it doesn't show, and a button to stop it), or neither: a warning and a button to
+ * the ways to set it, since the lock screen content and style only show with it. With the picture, also when the
+ * live wallpaper tried before is still on the home screen ([liveOnHome]).
  */
 @Composable
-private fun WallpaperStatus(wallpaperActive: Boolean, lockOnlyWallpaper: Boolean, onSetWallpaper: () -> Unit) {
-    if (wallpaperActive) {
+private fun WallpaperStatus(
+    mode: LockScreenState.Mode,
+    liveLockOnly: Boolean,
+    liveOnHome: Boolean,
+    onSetWallpaper: () -> Unit,
+    onOpenWallpaperSettings: () -> Unit,
+    onStopPicture: () -> Unit,
+) {
+    if (mode != LockScreenState.Mode.NONE) {
+        val picture = mode == LockScreenState.Mode.PICTURE
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.wallpaper_status_active), style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    stringResource(if (picture) R.string.wallpaper_status_picture else R.string.wallpaper_status_active),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             }
-            if (!lockOnlyWallpaper) {
+            if (picture || !liveLockOnly) {
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    stringResource(R.string.wallpaper_lock_only_needs_android_14),
+                    stringResource(if (picture) R.string.lock_picture_tip else R.string.live_wallpaper_both_screens_note),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            if (picture && liveOnHome) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.live_wallpaper_on_home),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                TextButton(onClick = onOpenWallpaperSettings) { Text(stringResource(R.string.open_wallpaper_settings)) }
+            }
+            if (picture) {
+                TextButton(onClick = onStopPicture) { Text(stringResource(R.string.lock_picture_stop)) }
+            } else if (!liveLockOnly) {
+                TextButton(onClick = onSetWallpaper) { Text(stringResource(R.string.lock_picture_instead)) }
             }
         }
         return
@@ -823,7 +884,7 @@ private fun WallpaperStatus(wallpaperActive: Boolean, lockOnlyWallpaper: Boolean
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                stringResource(WallpaperSetup.setupDetail(lockOnlyWallpaper)),
+                stringResource(WallpaperSetup.setupDetail(liveLockOnly)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onErrorContainer,
             )
