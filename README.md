@@ -13,7 +13,7 @@ Micro Review for AnkiDroid is an extension app for the AnkiDroid flashcard app. 
 
 - **Notification**: the current card's question is shown in a notification. Tap **Show answer** to see the answer and the Again / Hard / Good / Easy buttons. Only the buttons a card actually has are shown. The notification is fully visible on the lock screen, so you can answer without unlocking.
 
-- **Lock screen card**: set the "Micro Review for AnkiDroid" live wallpaper on your lock screen, and the card to review is shown there. Your home screen wallpaper is not changed. In **Settings**, choose whether it shows the question only, or the question and the answer (the notification then shows the answer buttons right away).
+- **Lock screen card**: set the "Micro Review for AnkiDroid" live wallpaper on your lock screen, and the card to review is shown there. Your home screen wallpaper is not changed. Where a live wallpaper can't be set on the lock screen alone (before Android 14, or on some phones such as Honor's MagicOS), the app sets a **picture of the card** as your lock screen wallpaper instead, and changes it with each card. In **Settings**, choose whether it shows the question only, or the question and the answer (the notification then shows the answer buttons right away).
 
 - **Open after unlock**: instead of the notification, a review screen can open when you unlock your phone, with the card already on the lock screen (Settings › **How to review**). Android only allows it with the "Display over other apps" permission, which Settings asks for; until then, the notification is used.
 
@@ -55,7 +55,7 @@ Micro Review for AnkiDroid is an extension app for the AnkiDroid flashcard app. 
 
 4. **Choose your decks**: tick decks in **All decks**, then order them under **Review order** with the arrows. Reviewing starts as soon as a deck is ticked: the first card shows up in a notification. Untick every deck to stop.
 
-5. **Optional, lock screen**: tap **Set lock screen wallpaper** and follow the instructions to choose Micro Review for AnkiDroid for the **lock screen only** (on Android 8 to 13, live wallpapers apply to both screens). In **Settings** (gear icon), choose what the lock screen shows, change its look, and choose how to review (notification or review screen after unlock).
+5. **Optional, lock screen**: tap **Set lock screen wallpaper** and follow the instructions to choose Micro Review for AnkiDroid for the **lock screen only**. Where that isn't possible (Android 8 to 13, some phones), the app offers to set a picture of the card on the lock screen instead: it replaces your current lock screen picture. In **Settings** (gear icon), choose what the lock screen shows, change its look, and choose how to review (notification or review screen after unlock).
 
 6. **When you're done**: when no selected deck has a card left, you'll see "Bravo! You've finished all cards in the selected decks." A new notification comes when it's time to study again.
 
@@ -66,7 +66,7 @@ Micro Review for AnkiDroid is an extension app for the AnkiDroid flashcard app. 
 
 - **Changes made in AnkiDroid**: AnkiDroid doesn't notify other apps. The app checks the displayed card when you open it, when you lock the phone (at most every 10 minutes), after a restart and every hour, and never answers a card that is no longer due.
 
-- **Lock screen wallpaper**: a lock-screen-only live wallpaper needs Android 14 or newer, and some manufacturers' lock screens don't show third-party live wallpapers.
+- **Lock screen wallpaper**: a lock-screen-only live wallpaper needs Android 14 or newer with a lock screen wallpaper picker; elsewhere the card is a picture. With the picture, one card per unlock, "Change the card at every unlock" and "Open after unlock" aren't available (they need the live wallpaper's lock and unlock events), and lock screen features that change the picture by themselves (Magazine unlock, Glance) must be turned off.
 
 
 ## Development
