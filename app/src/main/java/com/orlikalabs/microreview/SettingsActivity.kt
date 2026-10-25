@@ -242,15 +242,26 @@ private fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             SettingsGroup(Icons.Filled.Refresh, stringResource(R.string.settings_behavior)) {
-                SwitchRow(
-                    title = stringResource(R.string.several_in_a_row),
-                    summary = stringResource(if (severalInARow) R.string.several_in_a_row_on else R.string.several_in_a_row_off),
-                    checked = severalInARow,
-                    onChange = {
-                        ReviewSettings.setSeveralInARow(context, it)
-                        severalInARow = it
-                    },
-                )
+                Column {
+                    SwitchRow(
+                        title = stringResource(R.string.several_in_a_row),
+                        summary = stringResource(if (severalInARow) R.string.several_in_a_row_on else R.string.several_in_a_row_off),
+                        checked = severalInARow,
+                        onChange = {
+                            ReviewSettings.setSeveralInARow(context, it)
+                            severalInARow = it
+                        },
+                    )
+                    // One card per unlock needs the live wallpaper's lock and unlock events (not the card picture).
+                    if (!severalInARow && !wallpaperActive) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.several_in_a_row_needs_wallpaper),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
                 Column {
                     SwitchRow(
                         title = stringResource(R.string.rotate_on_unlock),
