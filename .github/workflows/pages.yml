@@ -1,0 +1,56 @@
+name: Privacy policy page
+
+# Publishes docs/play-store/privacy-policy.md on GitHub Pages, the public URL the Play Console asks for:
+# https://<owner>.github.io/<repository>/privacy-policy.html. Runs when the policy changes on develop, or on request.
+on:
+  push:
+    branches: [develop]
+    paths:
+      - docs/play-store/privacy-policy.md
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    # The page shows the date of the policy's last change, from git.
+    - name: Prepare the site
+      run: |
+        mkdir -p site
+        UPDATED=$(git log -1 --format=%cd --date=format:'%B %-d, %Y' -- docs/play-store/privacy-policy.md)
+        sed "s/^Last updated:.*/Last updated: $UPDATED./" docs/play-store/privacy-policy.md > site/privacy-policy.md
+        printf '# Micro Review for AnkiDroid\n\n[Privacy policy](privacy-policy.html)\n' > site/index.md
+
+    - name: Build with Jekyll
+      uses: actions/jekyll-build-pages@v1
+      with:
+        source: site
+        destination: _site
+
+    - uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}privacy-policy.html
+
+    steps:
+    - id: deployment
+      uses: actions/deploy-pages@v4
