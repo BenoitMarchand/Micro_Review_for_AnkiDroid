@@ -83,10 +83,10 @@ object ScheduledReview {
         post(context, state, alert = false)
     }
 
-    /** An answer button: reviews the card like the lock screen notification, then removes this notification. */
-    fun answer(context: Context, button: Int) {
+    /** An answer button for [card]: reviews it like the lock screen notification, then removes this notification. */
+    fun answer(context: Context, button: Int, card: CardSync.CardKey) {
         // Not the started card any more: it was answered or changed elsewhere, don't answer the new one blindly.
-        if (startedCard(context) != null) CardReview.answer(context, button)
+        if (startedCard(context) != null) CardReview.answer(context, button, card)
         cancel(context)
     }
 

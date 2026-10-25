@@ -22,6 +22,9 @@ class Notifications {
         const val SCHEDULED_CHANNEL_ID = "scheduled_review"
         const val ACTION_SHOW_ANSWER = "ACTION_SHOW_ANSWER"
 
+        /** The answer buttons: followed by the button number, 1 to 4 ([AnswerButtons]), with the card ([CardReview.forCard]). */
+        const val ACTION_BUTTON_PREFIX = "ACTION_BUTTON_"
+
         /** How long "Next card at your next unlock" stays before disappearing. */
         private const val NEXT_CARD_MESSAGE_TIMEOUT_MS = 5_000L
         private const val LEGACY_CHANNEL_ID = "channel_id"
@@ -86,7 +89,7 @@ class Notifications {
             expandedView.setViewVisibility(R.id.buttonShowAnswer, if (revealed) View.GONE else View.VISIBLE)
             expandedView.setOnClickPendingIntent(R.id.buttonShowAnswer, createIntent(context, ACTION_SHOW_ANSWER))
 
-            setAnswerButtons(context, expandedView, card, "ACTION_BUTTON_")
+            setAnswerButtons(context, expandedView, card, ACTION_BUTTON_PREFIX)
 
             builder = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification)
@@ -211,11 +214,12 @@ class Notifications {
         notificationManager.notify(ScheduledReview.NOTIFICATION_ID, builder.build())
     }
 
-    /** Shows [card]'s answer buttons, each sending [actionPrefix] followed by its number. */
+    /** Shows [card]'s answer buttons, each sending [actionPrefix] followed by its number, with the card. */
     private fun setAnswerButtons(context: Context, view: RemoteViews, card: CardInfo, actionPrefix: String) {
         val visibleButtons = AnswerButtons.visibleButtons(card.buttonCount)
+        val key = CardSync.CardKey(card.noteID, card.cardOrd)
         listOf(R.id.button1, R.id.button2, R.id.button3, R.id.button4).forEachIndexed { index, buttonId ->
-            view.setOnClickPendingIntent(buttonId, createIntent(context, actionPrefix + (index + 1)))
+            view.setOnClickPendingIntent(buttonId, createIntent(context, actionPrefix + (index + 1), key))
             view.setViewVisibility(buttonId, if (index + 1 in visibleButtons) View.VISIBLE else View.GONE)
         }
     }
@@ -228,9 +232,11 @@ class Notifications {
         return view
     }
 
-    private fun createIntent(context: Context, action: String): PendingIntent {
+    /** A button's broadcast; with [card] for an answer button ([CardReview.forCard]). */
+    private fun createIntent(context: Context, action: String, card: CardSync.CardKey? = null): PendingIntent {
         val intent = Intent(context, NotificationReceiver::class.java)
         intent.action = action
+        if (card != null) CardReview.forCard(intent, card)
         // A tap must be handled right away, not wait in the background broadcast queue (busy after boot).
         intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
         return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)

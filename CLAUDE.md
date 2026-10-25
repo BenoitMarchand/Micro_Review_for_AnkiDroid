@@ -94,6 +94,7 @@ Cards are never skipped in AnkiDroid's scheduler: fetching due cards is read-onl
 
 - Card content: only `QUESTION_SIMPLE` / `ANSWER_PURE` are used, cleaned by `CardText`. Media is not rendered; cards with sound in the question are skipped (they stay due in AnkiDroid).
 - Ease values depend on the card's button count: with 4 buttons 1 = Again, 2 = Hard, 3 = Good, 4 = Easy; with 3 buttons there is no Hard (Good = 2, Easy = 3). Always go through `AnswerButtons`. AnkiDroid's API has **no 5th ease**.
+- Every answer button carries the card it was shown with (`CardReview.forCard()`, in the intent data so each card has its own PendingIntent), and `CardReview.answer()` ignores an answer for any other card and runs one answer at a time (#90): a double tap or a tap queued during the previous answer must not review the next card unseen, or the same card twice.
 - AnkiDroid silently refuses to answer a card that isn't at the top of its kept study queue (#62): always answer through `AnkiDroidHelper.reviewCard()`, which drops that queue first, and don't query due cards between that and the answer. `FakeAnkiDataSource` refuses such answers too.
 - AnkiDroid queries are ContentProvider I/O: keep them off the main thread (coroutines on `Dispatchers.IO` in the activity, `goAsync()` in receivers).
 - PendingIntents must be `FLAG_IMMUTABLE` (targetSdk 31+). Distinct actions currently disambiguate the button intents; keep actions unique or use distinct request codes.
