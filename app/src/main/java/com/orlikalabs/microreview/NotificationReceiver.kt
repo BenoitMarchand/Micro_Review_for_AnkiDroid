@@ -15,20 +15,13 @@ class NotificationReceiver : BroadcastReceiver() {
         Log.i("Notifications", "onReceive called: ${intent?.action}")
         if (context == null)
             return
-        val task: (Context) -> Unit = when (intent?.action) {
+        val action = intent?.action ?: return
+        val task: (Context) -> Unit = when (action) {
             Notifications.ACTION_SHOW_ANSWER -> CardReview::revealAnswer
-            "ACTION_BUTTON_1" -> { c -> CardReview.answer(c, AnswerButtons.AGAIN) }
-            "ACTION_BUTTON_2" -> { c -> CardReview.answer(c, AnswerButtons.HARD) }
-            "ACTION_BUTTON_3" -> { c -> CardReview.answer(c, AnswerButtons.GOOD) }
-            "ACTION_BUTTON_4" -> { c -> CardReview.answer(c, AnswerButtons.EASY) }
             ScheduledReview.ACTION_ALARM -> ScheduledReview::onAlarm
             ScheduledReview.ACTION_START -> ScheduledReview::start
             ScheduledReview.ACTION_SHOW_ANSWER -> ScheduledReview::revealAnswer
-            ScheduledReview.ACTION_BUTTON_PREFIX + 1 -> { c -> ScheduledReview.answer(c, AnswerButtons.AGAIN) }
-            ScheduledReview.ACTION_BUTTON_PREFIX + 2 -> { c -> ScheduledReview.answer(c, AnswerButtons.HARD) }
-            ScheduledReview.ACTION_BUTTON_PREFIX + 3 -> { c -> ScheduledReview.answer(c, AnswerButtons.GOOD) }
-            ScheduledReview.ACTION_BUTTON_PREFIX + 4 -> { c -> ScheduledReview.answer(c, AnswerButtons.EASY) }
-            else -> return
+            else -> answerTask(action, intent) ?: return
         }
 
         // Looking through several decks can take a while: don't block the main thread.
@@ -38,10 +31,28 @@ class NotificationReceiver : BroadcastReceiver() {
             try {
                 task(appContext)
             } catch (e: Exception) {
-                Log.e("Notifications", "could not handle ${intent.action}", e)
+                Log.e("Notifications", "could not handle $action", e)
             } finally {
                 pendingResult.finish()
             }
+        }
+    }
+
+    /** An answer button of the lock screen notification or of the scheduled review, for the card in [intent]. */
+    private fun answerTask(action: String, intent: Intent): ((Context) -> Unit)? {
+        val scheduled = action.startsWith(ScheduledReview.ACTION_BUTTON_PREFIX)
+        val prefix = if (scheduled) ScheduledReview.ACTION_BUTTON_PREFIX else Notifications.ACTION_BUTTON_PREFIX
+        if (!action.startsWith(prefix)) return null
+        val button = action.removePrefix(prefix).toIntOrNull()?.takeIf { it in AnswerButtons.AGAIN..AnswerButtons.EASY } ?: return null
+        val card = CardReview.answeredCard(intent)
+        if (card == null) {
+            Log.w("Notifications", "$action without its card, ignored")
+            return null
+        }
+        return if (scheduled) {
+            { c -> ScheduledReview.answer(c, button, card) }
+        } else {
+            { c -> CardReview.answer(c, button, card) }
         }
     }
 }

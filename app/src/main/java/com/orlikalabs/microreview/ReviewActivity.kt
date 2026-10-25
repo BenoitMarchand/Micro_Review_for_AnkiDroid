@@ -142,7 +142,7 @@ class ReviewActivity : ComponentActivity() {
         lifecycleScope.launch {
             state = withContext(Dispatchers.IO) {
                 try {
-                    CardReview.answer(applicationContext, button)
+                    CardReview.answer(applicationContext, button, CardSync.CardKey(current.card.noteID, current.card.cardOrd))
                 } catch (e: Exception) {
                     // AnkiDroid unavailable (uninstalled, API disabled, permission revoked): the card stays.
                     Log.e("Notifications", "answering from the review screen failed", e)

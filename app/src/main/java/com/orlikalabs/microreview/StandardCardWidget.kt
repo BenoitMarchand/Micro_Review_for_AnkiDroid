@@ -49,10 +49,10 @@ class StandardCardWidget : AppWidgetProvider() {
         val task: (Context) -> Unit = when (intent.action) {
             ACTION_START -> ::start
             ACTION_SHOW_ANSWER -> ::revealAnswer
-            ACTION_ANSWER_PREFIX + AnswerButtons.AGAIN -> { c -> answer(c, AnswerButtons.AGAIN) }
-            ACTION_ANSWER_PREFIX + AnswerButtons.HARD -> { c -> answer(c, AnswerButtons.HARD) }
-            ACTION_ANSWER_PREFIX + AnswerButtons.GOOD -> { c -> answer(c, AnswerButtons.GOOD) }
-            ACTION_ANSWER_PREFIX + AnswerButtons.EASY -> { c -> answer(c, AnswerButtons.EASY) }
+            ACTION_ANSWER_PREFIX + AnswerButtons.AGAIN -> answerTask(AnswerButtons.AGAIN, intent) ?: return
+            ACTION_ANSWER_PREFIX + AnswerButtons.HARD -> answerTask(AnswerButtons.HARD, intent) ?: return
+            ACTION_ANSWER_PREFIX + AnswerButtons.GOOD -> answerTask(AnswerButtons.GOOD, intent) ?: return
+            ACTION_ANSWER_PREFIX + AnswerButtons.EASY -> answerTask(AnswerButtons.EASY, intent) ?: return
             ACTION_TIMEOUT -> ::onTimeout
             else -> return
         }
@@ -134,9 +134,20 @@ class StandardCardWidget : AppWidgetProvider() {
             CardReview.revealAnswer(context)
         }
 
+        /** An answer button, for the card in [intent] ([CardReview.forCard]); null if it has none. */
+        private fun answerTask(button: Int, intent: Intent): ((Context) -> Unit)? {
+            val card = CardReview.answeredCard(intent)
+            if (card == null) {
+                Log.w(TAG, "widget: ${intent.action} without its card, ignored")
+                return null
+            }
+            return { c -> answer(c, button, card) }
+        }
+
         /** The home screen always moves on to the next card: the answer doesn't count as the lock session's review. */
-        private fun answer(context: Context, button: Int) {
-            CardReview.answer(context, button, countsForSession = false)
+        private fun answer(context: Context, button: Int, card: CardSync.CardKey) {
+            // Ignored (a late tap): the widget already shows the next card.
+            CardReview.answer(context, button, card, countsForSession = false) ?: return
             val next = AnkiDroidHelper(context).storedState?.takeIf { it.hasCard() } ?: return
             if (isReviewing(context)) {
                 continueReview(context)
@@ -262,8 +273,11 @@ class StandardCardWidget : AppWidgetProvider() {
 
             views.setOnClickPendingIntent(R.id.widgetStart, broadcast(context, ACTION_START, 0))
             views.setOnClickPendingIntent(R.id.widgetShowAnswer, broadcast(context, ACTION_SHOW_ANSWER, 0))
-            answerButtonIds.forEach { (button, id) ->
-                views.setOnClickPendingIntent(id, broadcast(context, ACTION_ANSWER_PREFIX + button, button))
+            if (card != null) {
+                val key = CardSync.CardKey(card.noteID, card.cardOrd)
+                answerButtonIds.forEach { (button, id) ->
+                    views.setOnClickPendingIntent(id, broadcast(context, ACTION_ANSWER_PREFIX + button, button, key))
+                }
             }
 
             when (kind) {
@@ -312,11 +326,13 @@ class StandardCardWidget : AppWidgetProvider() {
             return CardWidgetContent.dueTotal(DeckSelection.load(context), anki.getDeckNames(), counts)
         }
 
-        private fun broadcast(context: Context, action: String, requestCode: Int): PendingIntent =
+        /** A tap's broadcast; with [card] for an answer button ([CardReview.forCard]). */
+        private fun broadcast(context: Context, action: String, requestCode: Int, card: CardSync.CardKey? = null): PendingIntent =
             PendingIntent.getBroadcast(
                 context,
                 requestCode,
-                Intent(context, StandardCardWidget::class.java).setAction(action),
+                Intent(context, StandardCardWidget::class.java).setAction(action)
+                    .also { if (card != null) CardReview.forCard(it, card) },
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
 

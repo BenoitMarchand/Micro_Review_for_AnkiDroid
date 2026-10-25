@@ -148,7 +148,7 @@ class ReviewScenariosTest {
         select(1)
         start()
 
-        press("ACTION_BUTTON_3")
+        pressAnswer("ACTION_BUTTON_3")
         waitUntil { anki.answers.isNotEmpty() && storedState().noteID == 11L }
 
         assertEquals(listOf(FakeAnkiDataSource.Answer(10, 0, ease = 3)), anki.answers)
@@ -163,11 +163,68 @@ class ReviewScenariosTest {
 
         // Without the lock screen wallpaper (reset by the test run), the timer starts when the card is posted.
         SystemClock.sleep(1_000)
-        press("ACTION_BUTTON_3")
+        pressAnswer("ACTION_BUTTON_3")
         waitUntil { anki.answers.isNotEmpty() }
 
         val timeTaken = anki.timesTaken.single()
         assertTrue("time taken: $timeTaken ms", timeTaken in 1_000L..10_000L)
+    }
+
+    @Test
+    fun doubleTapOnAnAnswer_reviewsTheCardOnce_andNotTheNextOne() {
+        anki.deck(
+            1, "Spanish",
+            FakeAnkiDataSource.Card(10, question = "Hola"),
+            FakeAnkiDataSource.Card(11, question = "Adiós"),
+        )
+        select(1)
+        start()
+
+        // Both taps come from the buttons shown with card 10.
+        val card = displayedCard()
+        pressAnswer("ACTION_BUTTON_3", card)
+        pressAnswer("ACTION_BUTTON_3", card)
+        waitUntil { anki.answers.isNotEmpty() && storedState().noteID == 11L }
+        // The receiver works in the background: give the second tap time to (not) answer.
+        SystemClock.sleep(1_500)
+
+        assertEquals(listOf(FakeAnkiDataSource.Answer(10, 0, ease = 3)), anki.answers)
+        assertEquals(11L, storedState().noteID)
+    }
+
+    @Test
+    fun answerWithoutItsCard_isIgnored() {
+        anki.deck(1, "Spanish", FakeAnkiDataSource.Card(10, question = "Hola"))
+        select(1)
+        start()
+
+        // An answer button from before the card was in its intent (a notification posted by an older version).
+        press("ACTION_BUTTON_3")
+        SystemClock.sleep(1_500)
+
+        assertTrue(anki.answers.isEmpty())
+        assertEquals(10L, storedState().noteID)
+    }
+
+    @Test
+    fun doubleTapOnAWidgetAnswer_reviewsTheCardOnce_andNotTheNextOne() {
+        anki.deck(
+            1, "Spanish",
+            FakeAnkiDataSource.Card(10, question = "Hola"),
+            FakeAnkiDataSource.Card(11, question = "Adiós"),
+        )
+        select(1)
+        start()
+        pressWidget(StandardCardWidget.ACTION_START)
+
+        val card = displayedCard()
+        pressWidget(StandardCardWidget.ACTION_ANSWER_PREFIX + AnswerButtons.GOOD, card)
+        pressWidget(StandardCardWidget.ACTION_ANSWER_PREFIX + AnswerButtons.GOOD, card)
+        waitUntil { anki.answers.isNotEmpty() && storedState().noteID == 11L }
+        SystemClock.sleep(1_500)
+
+        assertEquals(listOf(FakeAnkiDataSource.Answer(10, 0, ease = 3)), anki.answers)
+        assertEquals(11L, storedState().noteID)
     }
 
     @Test
@@ -176,7 +233,7 @@ class ReviewScenariosTest {
         select(1)
         start()
 
-        press("ACTION_BUTTON_3")
+        pressAnswer("ACTION_BUTTON_3")
         waitUntil { anki.answers.isNotEmpty() }
 
         assertEquals(listOf(FakeAnkiDataSource.Answer(10, 0, ease = 2)), anki.answers)
@@ -188,7 +245,7 @@ class ReviewScenariosTest {
         select(1)
         start()
 
-        press("ACTION_BUTTON_2")
+        pressAnswer("ACTION_BUTTON_2")
         // The receiver works in the background: give it time to (not) answer.
         SystemClock.sleep(1_500)
 
@@ -242,7 +299,7 @@ class ReviewScenariosTest {
         rotate(expected = 11)
 
         // Answering shows the first card again, and the next due card joins the set.
-        press("ACTION_BUTTON_3")
+        pressAnswer("ACTION_BUTTON_3")
         waitUntil { anki.answers.isNotEmpty() && storedState().noteID == 10L }
         assertEquals(listOf(FakeAnkiDataSource.Answer(11, 0, ease = 3)), anki.answers)
         rotate(expected = 12)
@@ -262,7 +319,7 @@ class ReviewScenariosTest {
         start()
         rotate(expected = 11)
 
-        press("ACTION_BUTTON_3")
+        pressAnswer("ACTION_BUTTON_3")
         waitUntil { anki.answers.isNotEmpty() || anki.refused.isNotEmpty() }
 
         assertEquals(listOf(FakeAnkiDataSource.Answer(11, 0, ease = 3)), anki.answers)
@@ -280,7 +337,7 @@ class ReviewScenariosTest {
         start()
         assertEquals(11L, storedState().noteID)
 
-        press("ACTION_BUTTON_3")
+        pressAnswer("ACTION_BUTTON_3")
         waitUntil { anki.answers.isNotEmpty() || anki.refused.isNotEmpty() }
 
         assertEquals(listOf(FakeAnkiDataSource.Answer(11, 0, ease = 3)), anki.answers)
@@ -311,7 +368,7 @@ class ReviewScenariosTest {
         val card = storedState().toCardInfo()
         waitUntil { CardReview.isAnswerRevealed(context, card) }
 
-        press(ScheduledReview.ACTION_BUTTON_PREFIX + 3)
+        pressAnswer(ScheduledReview.ACTION_BUTTON_PREFIX + 3)
         waitUntil { anki.answers.isNotEmpty() && storedState().noteID == 11L }
         assertEquals(listOf(FakeAnkiDataSource.Answer(10, 0, ease = 3)), anki.answers)
         val timeTaken = anki.timesTaken.single()
@@ -348,7 +405,7 @@ class ReviewScenariosTest {
         ScheduledReview.start(context)
         scheduledNotification()
 
-        press("ACTION_BUTTON_3")
+        pressAnswer("ACTION_BUTTON_3")
         waitUntil { anki.answers.isNotEmpty() && storedState().noteID == 11L }
 
         waitUntil { scheduledNotificationOrNull() == null }
@@ -424,7 +481,7 @@ class ReviewScenariosTest {
         start()
 
         pressWidget(StandardCardWidget.ACTION_START)
-        pressWidget(StandardCardWidget.ACTION_ANSWER_PREFIX + AnswerButtons.GOOD)
+        pressWidget(StandardCardWidget.ACTION_ANSWER_PREFIX + AnswerButtons.GOOD, displayedCard())
         // The timer restarts for the next card once the answer is handled.
         waitUntil { ReviewTimer.timeTaken(context, CardSync.CardKey(11, 0)) > 0 }
 
@@ -450,7 +507,7 @@ class ReviewScenariosTest {
                 .getLong("active_until", 0) > 0
         }
         SystemClock.sleep(1_000)
-        pressWidget(StandardCardWidget.ACTION_ANSWER_PREFIX + AnswerButtons.GOOD)
+        pressWidget(StandardCardWidget.ACTION_ANSWER_PREFIX + AnswerButtons.GOOD, displayedCard())
         waitUntil { anki.answers.isNotEmpty() }
 
         // A little under 1 s is possible (the timer uses the wall clock); 3 s or more means Start didn't restart it.
@@ -460,12 +517,15 @@ class ReviewScenariosTest {
 
     private fun select(vararg deckIds: Long) = DeckSelection.save(context, deckIds.toList())
 
-    /** A widget button: the broadcast goes through the widget provider, like a tap. */
-    private fun pressWidget(action: String) {
-        context.sendBroadcast(
-            Intent(context, StandardCardWidget::class.java).setAction(action).addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-        )
+    /** A widget button: the broadcast goes through the widget provider, like a tap. An answer button has its [card]. */
+    private fun pressWidget(action: String, card: CardSync.CardKey? = null) {
+        val intent = Intent(context, StandardCardWidget::class.java).setAction(action).addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+        if (card != null) CardReview.forCard(intent, card)
+        context.sendBroadcast(intent)
     }
+
+    /** The card displayed now: the one its answer buttons are shown with. */
+    private fun displayedCard(): CardSync.CardKey = storedState().let { CardSync.CardKey(it.noteID, it.cardOrd) }
 
     /** Reviewing starts with the deck selection: the app runs the sync once the decks are selected. */
     private fun start() {
@@ -473,11 +533,14 @@ class ReviewScenariosTest {
     }
 
     /** A notification button: the broadcast goes through the real receiver, on the foreground queue like a tap. */
-    private fun press(action: String) {
-        context.sendBroadcast(
-            Intent(context, NotificationReceiver::class.java).setAction(action).addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-        )
+    private fun press(action: String, card: CardSync.CardKey? = null) {
+        val intent = Intent(context, NotificationReceiver::class.java).setAction(action).addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+        if (card != null) CardReview.forCard(intent, card)
+        context.sendBroadcast(intent)
     }
+
+    /** A notification answer button, shown with the [card] displayed now. */
+    private fun pressAnswer(action: String, card: CardSync.CardKey = displayedCard()) = press(action, card)
 
     private fun storedState(): StoredState =
         AnkiDroidHelper(context).storedState ?: throw AssertionError("no card stored: reviewing not started")
