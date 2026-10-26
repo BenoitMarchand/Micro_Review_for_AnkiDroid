@@ -9,12 +9,18 @@
     1. Builds and installs the app and the test APK (skipped with -SkipBuild), grants the AnkiDroid and
        notification permissions.
     2. Runs StoreAssetsSetup (app/src/androidTest): resets the "World capitals" demo deck in AnkiDroid (its cards
-       are new again), selects it in the app, renders the icon.
+       are new again), selects it in the app, renders the icon, and sets what the recordings show (one card per
+       unlock from the notification, a see-through widget).
     3. Sets the card wallpaper on the lock screen if needed (reboots the emulator when Android didn't bind it
        again after the reinstall), adds the Card widget to the home screen if needed, and tidies the screen
-       (status bar demo mode, system notifications snoozed, screen kept on, touches shown).
+       (status bar demo mode, other apps' notifications snoozed, screen kept on, touches shown).
     4. Takes the screenshots, records the three flows (each one answers cards of the demo deck) and converts
-       them with ffmpeg.
+       them with ffmpeg:
+       - lock screen: from the locked phone, expands the card notification, Show answer, Easy, then unlocks;
+       - widget: Start review, Show answer, Good, Show answer, Easy on the see-through widget;
+       - notification: unlocked, "Reviews at set times" set to the next minute (StoreAssetsSetup), the app
+         opened then left; waits for the notification (screen kept on), then Start, Show answer, Easy. The GIF
+         starts 1 s before the notification arrives: the wait is cut out.
     5. Copies the three GIFs to .github/ in the project, where the README shows them (skipped with -NoReadmeGifs).
 
     Output (default build/store-assets):
@@ -71,6 +77,8 @@ $AppId = 'com.orlikalabs.microreview'
 # Package of the classes (the namespace); the same as the application ID, but they may differ
 $ClassPackage = 'com.orlikalabs.microreview'
 $AnkiDroidId = 'com.ichi2.anki'
+# The app's application ID before it was renamed: an old install of it is removed from the emulator.
+$FormerAppId = 'com.ankidroid.companion'
 $Remote = '/sdcard/store-assets'
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 
@@ -215,6 +223,13 @@ function Initialize-CardWallpaper {
     }
 }
 
+# Whether the app's Card widget is on the home screen (by its provider: another app's widget may show the same texts).
+function Test-CardWidget {
+    $dump = (Shell 'dumpsys appwidget') -join "`n"
+    $widgets = [regex]::Match($dump, '(?s)\nWidgets:(.*?)(\nHosts:|$)').Groups[1].Value
+    return $widgets -match "cmp:ComponentInfo\{$([regex]::Escape($AppId))/"
+}
+
 # Adds the Card widget to the home screen through the launcher (Pixel launcher). Returns $false if it can't.
 function Add-CardWidget {
     $size = Get-ScreenSize
@@ -246,10 +261,10 @@ function Add-CardWidget {
     }
     Show-Home
     Show-Home
-    return [bool](Find-Node '^Start review$|cards due|^Show answer$')
+    return (Test-CardWidget)
 }
 
-# Status bar demo mode, system notifications snoozed (e.g. "Storage space running out"), screen kept on.
+# Status bar demo mode, other apps' notifications snoozed (e.g. "Storage space running out"), screen kept on.
 function Initialize-Screen {
     Shell 'settings put system show_touches 1' | Out-Null
     # "Stay on" only works on power: a simulated charger (the lock screen then says "Charged": blanked later).
@@ -264,8 +279,9 @@ function Initialize-Screen {
         '-e command notifications -e visible false')) {
         Shell "am broadcast -a com.android.systemui.demo $demo" | Out-Null
     }
-    $keys = [regex]::Matches(((Shell 'dumpsys notification --noredact') -join "`n"), 'key=(-?\d+\|android\|[^\s]+)') |
-        ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique
+    # Every other app's notification (system ones, "Need time to focus?"...): only the app's show in the recordings.
+    $keys = [regex]::Matches(((Shell 'dumpsys notification --noredact') -join "`n"), 'key=(-?\d+\|[^|\s]+\|[^\s]+)') |
+        ForEach-Object { $_.Groups[1].Value } | Where-Object { $_ -notmatch "\|$([regex]::Escape($AppId))\|" } | Select-Object -Unique
     foreach ($key in $keys) { Shell "cmd notification snooze --for 3600000 '$key'" | Out-Null }
 }
 
@@ -294,10 +310,17 @@ function Start-Recording {
 
 function Stop-Recording([string]$Name) {
     Start-Sleep -Milliseconds 500
+    # With the video's length, gives the clock time of its first frame (see Get-VideoDuration).
+    $script:stoppedAt = $script:recordingClock.Elapsed.TotalSeconds
     Shell 'pkill -INT screenrecord' | Out-Null
     $script:recorder.WaitForExit(10000) | Out-Null
     Start-Sleep -Seconds 2
     Adb pull "$Remote/rec.mp4" (Join-Path $RawDir "$Name.mp4") | Out-Null
+}
+
+# Whether the scheduled review notification (ScheduledReview.NOTIFICATION_ID = 2) is posted.
+function Test-ScheduledReviewPosted {
+    ((Shell 'dumpsys notification --noredact') -join "`n") -match "pkg=$([regex]::Escape($AppId)) user=\S+ id=2 "
 }
 
 # Box of the "Charged" text of the simulated charger on the lock screen, for ffmpeg's delogo filter.
@@ -331,6 +354,16 @@ function Ffmpeg {
     if ($LASTEXITCODE -ne 0) { Fail "ffmpeg failed (exit code $LASTEXITCODE)." }
 }
 
+# Length of a video in seconds, read from ffmpeg's output, or $null.
+function Get-VideoDuration([string]$Video) {
+    $ErrorActionPreference = 'Continue'
+    $info = (& $script:ffmpeg -hide_banner -i $Video 2>&1) -join "`n"
+    $m = [regex]::Match($info, 'Duration: (\d+):(\d+):(\d+(?:\.\d+)?)')
+    if (-not $m.Success) { return $null }
+    return [int]$m.Groups[1].Value * 3600 + [int]$m.Groups[2].Value * 60 +
+        [double]::Parse($m.Groups[3].Value, [Globalization.CultureInfo]::InvariantCulture)
+}
+
 # 360 px wide, 10 fps, ordered dithering: stable from frame to frame, so small files on pictures.
 $GifFilter = 'fps=10,scale=360:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=192:stats_mode=full[p];[b][p]paletteuse=dither=bayer:bayer_scale=3:diff_mode=rectangle'
 
@@ -349,20 +382,21 @@ function Convert-ToStoreScreenshot([string]$Png, [string]$Out, [string]$Before) 
 # Converts the captures in raw/ (see capture.json) to the GIFs and the Play Store screenshots.
 function Convert-Captures {
     $capture = Get-Content (Join-Path $RawDir 'capture.json') -Raw | ConvertFrom-Json
-    $chargeLabel = $capture.ChargeLabel
     Push-Location $RawDir
     try {
-        Convert-ToGif 'notification.mp4' (Join-Path $GifDir 'notification.gif') ((@($chargeLabel, 'tpad=stop_mode=clone:stop_duration=2') | Where-Object { $_ }) -join ',')
-        # Home screen, screen off, then the recording from the lock screen to the unlock.
-        $w = $capture.Width; $h = $capture.Height
-        # The label is only on the lock screen: not on the home screen after the unlock.
+        # The wait for the scheduled review notification isn't shown: the GIF starts 1 s before it arrives. The
+        # script's clock starts with the screenrecord process, a little before the video's first frame: that frame
+        # is at the clock time the recording stopped, minus the video's length.
+        $duration = Get-VideoDuration 'notification.mp4'
+        $videoStart = if ($duration -and $capture.NotificationStopAt) { [Math]::Max(0, $capture.NotificationStopAt - $duration) } else { 0 }
+        # Checked every 0.5 s, plus the time of dumpsys: seen about 0.5 s after it shows up.
+        $arrival = $capture.NotificationAt - $videoStart - 0.5
+        $from = [string]::Format([Globalization.CultureInfo]::InvariantCulture, '{0:0.00}', [Math]::Max(0, $arrival - 1))
+        Convert-ToGif 'notification.mp4' (Join-Path $GifDir 'notification.gif') "trim=start=$from,setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=2"
+        # The "Charged" label is only on the lock screen: not on the home screen after the unlock.
+        $chargeLabel = $capture.ChargeLabel
         $lockLabel = if ($chargeLabel) { "$($chargeLabel):enable='lt(t,$([string]::Format([Globalization.CultureInfo]::InvariantCulture, '{0:0.00}', $capture.UnlockAt)))'" } else { $null }
-        $clip = (@($lockLabel, 'tpad=stop_mode=clone:stop_duration=1') | Where-Object { $_ }) -join ','
-        # -vcodec, not -c:v: Windows PowerShell mangles "-name:value" arguments.
-        Ffmpeg -loop 1 -t 1.5 -i 'home.png' -f lavfi -t 0.7 -i "color=black:s=${w}x${h}:r=30" -i 'lockscreen-unlock.mp4' `
-            -filter_complex "[0]scale=${w}:${h},fps=30,format=yuv420p,setsar=1[a];[1]format=yuv420p,setsar=1[b];[2]scale=${w}:${h},fps=30,$clip,format=yuv420p,setsar=1[c];[a][b][c]concat=n=3:v=1[v]" `
-            -map '[v]' -vcodec libx264 -crf 18 'lockscreen.mp4'
-        Convert-ToGif 'lockscreen.mp4' (Join-Path $GifDir 'lockscreen.gif')
+        Convert-ToGif 'lockscreen.mp4' (Join-Path $GifDir 'lockscreen.gif') ((@($lockLabel, 'tpad=stop_mode=clone:stop_duration=1') | Where-Object { $_ }) -join ',')
         if ($capture.HasWidget) { Convert-ToGif 'widget.mp4' (Join-Path $GifDir 'widget.gif') 'tpad=stop_mode=clone:stop_duration=1' }
 
         $shots = @('main', 'settings', 'lockscreen', 'notification')
@@ -496,12 +530,18 @@ if (-not $ConvertOnly) {
             Adb install -r -t (Join-Path $apks 'androidTest\debug\app-debug-androidTest.apk') | Out-Null
             if ($LASTEXITCODE -ne 0) { Fail 'Could not install the test APK.' }
         }
+        # The app under its former application ID: same name, its own widget and notifications in the recordings.
+        if (Test-Installed $FormerAppId) {
+            Write-Host "    removing $FormerAppId (the app's former application ID)"
+            Adb uninstall $FormerAppId | Out-Null
+        }
         Shell "pm grant $AppId com.ichi2.anki.permission.READ_WRITE_DATABASE" | Out-Null
         Shell "pm grant $AppId android.permission.POST_NOTIFICATIONS" | Out-Null
 
         Write-Step 'Resetting the demo deck and rendering the icon'
-        $output = Shell "am instrument -w -e storeAssets true -e class $ClassPackage.StoreAssetsSetup $AppId.test/androidx.test.runner.AndroidJUnitRunner"
-        if (-not ($output -match '^OK \(2 tests\)')) {
+        $setup = "$ClassPackage.StoreAssetsSetup"
+        $output = Shell "am instrument -w -e storeAssets true -e class $setup#resetDemoDeck,$setup#renderListingIcon,$setup#prepareScenarios $AppId.test/androidx.test.runner.AndroidJUnitRunner"
+        if (-not ($output -match '^OK \(3 tests\)')) {
             $output | ForEach-Object { Write-Host $_ }
             Fail 'The setup failed: is the AnkiDroid API enabled (AnkiDroid: Settings > Advanced)?'
         }
@@ -513,7 +553,7 @@ if (-not $ConvertOnly) {
         Initialize-Screen
         Unlock
         Show-Home
-        $hasWidget = [bool](Find-Node '^Start review$|cards due|^Show answer$')
+        $hasWidget = Test-CardWidget
         if (-not $hasWidget) {
             Write-Host '    adding the Card widget to the home screen'
             $hasWidget = Add-CardWidget
@@ -530,40 +570,33 @@ if (-not $ConvertOnly) {
         Save-Screenshot 'settings'
         Show-Home
 
-        Write-Step 'Recording the notification'
+        Write-Step 'Recording the lock screen'
         Lock-AndWake
         if (-not (Wait-Node 'capital of' 10)) { Fail 'The card notification is not on the lock screen.' }
         $chargeLabel = Get-ChargeLabel
         $expand = Wait-Node '^Expand' 5
         if (-not $expand) { Fail 'The card notification has no expand button.' }
         Start-Recording
-        Start-Sleep -Seconds 1
-        Tap $expand.X $expand.Y
-        $show = Find-Node '^Show answer$'   # absent when the wallpaper already shows the answer
-        if ($show) { Tap $show.X $show.Y }
-        $good = Wait-Node '^Good$' 5
-        if (-not $good) { Fail 'The answer buttons are not in the notification.' }
-        Save-Screenshot 'notification'
-        Tap $good.X $good.Y
-        # Stop before the answered notification goes away (5 s): the lock screen clock then covers the card.
-        Wait-Node 'Next card at your next unlock' 3 | Out-Null
-        Stop-Recording 'notification'
-
-        Write-Step 'Recording the lock screen'
-        Unlock
-        Show-Home
-        Save-Screenshot 'home'
-        Lock-AndWake
-        Wait-Node 'capital of' 10 | Out-Null
-        Start-Recording
         Start-Sleep -Milliseconds 1500
         Save-Screenshot 'lockscreen'
+        Tap $expand.X $expand.Y
+        $show = Wait-Node '^Show answer$' 3   # absent when the wallpaper already shows the answer
+        if ($show) { Tap $show.X $show.Y }
+        $easy = Wait-Node '^Easy$' 5
+        if (-not $easy) { Fail 'The answer buttons are not in the notification.' }
+        Save-Screenshot 'notification'
+        Tap $easy.X $easy.Y
+        # One card per unlock: the answered card stays with "Next card at your next unlock". The shade expanded over
+        # the lock screen is closed, the lock screen shows the message too, then the phone is unlocked.
+        Wait-Node 'Next card at your next unlock' 3 | Out-Null
         Start-Sleep -Milliseconds 1500
+        Shell 'cmd statusbar collapse' | Out-Null
+        Start-Sleep -Milliseconds 2000
         $size = Get-ScreenSize
         $unlockAt = $script:recordingClock.Elapsed.TotalSeconds
         Shell "input swipe $([int]($size.Width / 2)) $([int]($size.Height * 0.92)) $([int]($size.Width / 2)) $([int]($size.Height * 0.35)) 250" | Out-Null
-        Start-Sleep -Milliseconds 2500
-        Stop-Recording 'lockscreen-unlock'
+        Start-Sleep -Milliseconds 3500
+        Stop-Recording 'lockscreen'
         Unlock
 
         if ($hasWidget) {
@@ -580,7 +613,51 @@ if (-not $ConvertOnly) {
             Stop-Recording 'widget'
         }
 
-        @{ Width = $size.Width; Height = $size.Height; ChargeLabel = $chargeLabel; UnlockAt = $unlockAt; HasWidget = $hasWidget } |
+        Write-Step 'Recording the notification'
+        # Running instrumentation force-stops the app (its alarms are removed): opening it sets the alarm again.
+        $output = Shell "am instrument -w -e storeAssets true -e scheduleReview true -e class $setup#scheduleReviewSoon $AppId.test/androidx.test.runner.AndroidJUnitRunner"
+        if (-not ($output -match '^OK \(1 test\)')) {
+            $output | ForEach-Object { Write-Host $_ }
+            Fail 'Could not set the scheduled review.'
+        }
+        Unlock
+        Shell "am start -n $AppId/$ClassPackage.MainActivity" | Out-Null
+        if (-not (Wait-Node '^Review order$' 15)) { Fail 'The main screen did not open.' }
+        Show-Home
+        Write-Host '    waiting for the scheduled review notification (up to a few minutes: the alarm is inexact)'
+        # screenrecord stops after 3 minutes: record again if the notification takes longer.
+        $notificationAt = $null
+        for ($attempt = 0; $attempt -lt 4 -and $null -eq $notificationAt; $attempt++) {
+            Start-Recording
+            while ($script:recordingClock.Elapsed.TotalSeconds -lt 150) {
+                if (Test-ScheduledReviewPosted) { $notificationAt = $script:recordingClock.Elapsed.TotalSeconds; break }
+                Start-Sleep -Milliseconds 500
+            }
+            if ($null -eq $notificationAt) { Stop-Recording 'notification' }
+        }
+        if ($null -eq $notificationAt) { Fail 'The scheduled review notification did not come.' }
+        # The pop-up shows for a moment, then Start (a standard action) is tapped in the notification shade.
+        Start-Sleep -Seconds 2
+        Shell 'cmd statusbar expand-notifications' | Out-Null
+        $start = Wait-Node '^Start$' 8
+        if (-not $start) { Fail 'The scheduled review notification has no Start action.' }
+        Tap $start.X $start.Y
+        Start-Sleep -Seconds 1
+        Shell 'cmd statusbar expand-notifications' | Out-Null
+        $show = Wait-Node '^Show answer$' 4
+        if (-not $show) {
+            $expand = Wait-Node '^Expand' 3
+            if ($expand) { Tap $expand.X $expand.Y }
+            $show = Wait-Node '^Show answer$' 5
+        }
+        if (-not $show) { Fail 'The scheduled review notification has no Show answer button.' }
+        Tap $show.X $show.Y
+        Invoke-NodeTap '^Easy$' 2
+        Stop-Recording 'notification'
+        $notificationStopAt = $script:stoppedAt
+        Shell 'cmd statusbar collapse' | Out-Null
+
+        @{ Width = $size.Width; Height = $size.Height; ChargeLabel = $chargeLabel; UnlockAt = $unlockAt; NotificationAt = $notificationAt; NotificationStopAt = $notificationStopAt; HasWidget = $hasWidget } |
             ConvertTo-Json | Set-Content (Join-Path $RawDir 'capture.json')
     } finally {
         Restore-Screen
