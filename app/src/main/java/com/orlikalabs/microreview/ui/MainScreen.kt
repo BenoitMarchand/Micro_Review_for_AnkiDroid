@@ -207,7 +207,7 @@ private fun ReadyContent(
         if (setup.wallpaperActive) {
             item(key = "wallpaper-configured") { WallpaperConfigured() }
         }
-        item(key = "current") { CurrentCardCard(currentCard, onlyWhileLocked = setup.wallpaperActive) }
+        item(key = "current") { CurrentCardCard(currentCard, onlyWhileLocked = setup.liveWallpaper) }
 
         item(key = "order-header") {
             SectionHeader(stringResource(R.string.review_order), stringResource(R.string.review_order_explanation))
@@ -379,8 +379,14 @@ private fun CurrentCardCard(currentCard: CurrentCard, onlyWhileLocked: Boolean) 
 /** What still needs to be set up; the checklist only shows the items that aren't done. */
 data class SetupStatus(
     val notificationsEnabled: Boolean = true,
+    /** The card is on the lock screen: the live wallpaper or the card picture. */
     val wallpaperActive: Boolean = true,
     val backgroundAllowed: Boolean = true,
+    /**
+     * The live wallpaper is on the lock screen: the card notification is then only shown while locked. Not with the
+     * card picture, which gets no lock and unlock events.
+     */
+    val liveWallpaper: Boolean = wallpaperActive,
 ) {
     val isComplete get() = notificationsEnabled && wallpaperActive && backgroundAllowed
 }
