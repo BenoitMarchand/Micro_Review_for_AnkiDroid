@@ -47,16 +47,16 @@ A stopped emulator is started first, and the script goes on once Android has boo
 4. Takes the screenshots, records the three flows, converts them, and puts the emulator's settings back.
 5. Copies the three GIFs to `.github/`, where the project README shows them (`-NoReadmeGifs` to skip it). Commit them to update the README.
 
-Each run answers about 4 demo cards. The demo deck counts toward AnkiDroid's daily limit of new cards (20 by default): after about 5 runs on the same day, raise the deck's limit in AnkiDroid or wait for the next day.
+Each run answers about 4 demo cards, and waits up to a few minutes for the scheduled review notification (an inexact alarm). The demo deck counts toward AnkiDroid's daily limit of new cards (20 by default): after about 5 runs on the same day, raise the deck's limit in AnkiDroid or wait for the next day.
 
 ### Output (default: `build/store-assets`, not committed)
 
 | Path | Content |
 |---|---|
 | `screenshots/1-main.png` … `5-widget.png` | Main screen, Settings, lock screen, notification with the answer buttons, widget with the answer buttons. Cropped to 1080 × 2160 (the Play Store refuses images longer than twice their width) |
-| `gif/lockscreen.gif` | Home screen → screen off → the card on the lock screen → unlock |
-| `gif/notification.gif` | Lock screen → expand the notification → Show answer → Good → "Next card at your next unlock" |
-| `gif/widget.gif` | Start review → Show answer → Good → next card → Show answer → Easy |
+| `gif/lockscreen.gif` | Locked phone with the card (one card per unlock, from the notification) → expand the notification → Show answer → Easy → "Next card at your next unlock" → unlock |
+| `gif/notification.gif` | Unlocked, "Reviews at set times" at the next minute: the notification arrives (the wait is cut, 1 s kept) → Start → Show answer → Easy |
+| `gif/widget.gif` | See-through widget: Start review → Show answer → Good → next card → Show answer → Easy |
 | `icon-512.png` | Listing icon, 512 × 512, full square (the Play Store rounds the corners) |
 | `raw/` | Full-size screenshots and the screen recordings |
 

@@ -1,8 +1,10 @@
 package com.orlikalabs.microreview
 
 import android.content.ContentUris
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -15,6 +17,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.time.LocalTime
 
 /**
  * Prepares the Play Store assets (`scripts/store-assets.ps1`), on the real AnkiDroid: a demo deck whose cards
@@ -56,7 +59,60 @@ class StoreAssetsSetup {
 
         DeckSelection.save(context, listOf(deckId))
         CardStateController.showNextCard(context, silent = true, notifyIfNone = false)
+        flush()
         Log.i(LOG_TAG, "demo deck $deckId reset with ${CARDS.size} cards")
+    }
+
+    /**
+     * The settings the recordings show: one card per unlock reviewed from the notification (lock screen GIF), no
+     * scheduled review yet (notification GIF, [scheduleReviewSoon]), and a see-through widget (widget GIF).
+     */
+    @Test
+    fun prepareScenarios() {
+        ReviewSettings.setSeveralInARow(context, false)
+        ReviewSettings.setRotateOnUnlock(context, false)
+        ReviewSettings.setReviewMode(context, ReviewSettings.ReviewMode.NOTIFICATION)
+        ScheduledReviewSettings.setEnabled(context, false)
+        // A scheduled review notification left from an earlier run would show on the lock screen.
+        ScheduledReview.cancel(context)
+        val widget = WallpaperStyle.load(context, WallpaperStyle.Target.WIDGET)
+        WallpaperStyle.save(
+            context,
+            widget.copy(seeThrough = true, filter = PictureFilter.DARKEN, filterIntensity = WIDGET_FADE, textColor = Color.WHITE),
+            WallpaperStyle.Target.WIDGET,
+        )
+        flush()
+    }
+
+    /**
+     * Turns "Reviews at set times" on, at the next minute (the one after if it starts in less than 30 s). Run right
+     * before the notification recording; the app sets the alarm when it is opened next (this run force-stops it,
+     * which removes its alarms).
+     */
+    @Test
+    fun scheduleReviewSoon() {
+        assumeTrue(
+            "run by scripts/store-assets.ps1 before the notification recording only",
+            InstrumentationRegistry.getArguments().getString("scheduleReview") == "true"
+        )
+        val now = LocalTime.now()
+        val minute = (now.hour * 60 + now.minute + if (now.second < 30) 1 else 2) % (24 * 60)
+        ScheduledReviewSettings.setTimes(context, listOf(minute))
+        ScheduledReviewSettings.setEnabled(context, true)
+        flush()
+        Log.i(LOG_TAG, "scheduled review at %02d:%02d".format(minute / 60, minute % 60))
+    }
+
+    /**
+     * Writes the settings saved with `apply()` before this run ends: `am instrument` then kills the app's process,
+     * and a pending write would be lost.
+     */
+    private fun flush() {
+        listOf(
+            "com.ankidroid.companion.deck_selection", AnkiDroidHelper.STATE_DB, "com.ankidroid.companion.review_settings",
+            "com.ankidroid.companion.scheduled_review_settings", "com.ankidroid.companion.scheduled_review",
+            WallpaperStyle.Target.WIDGET.prefs,
+        ).forEach { context.getSharedPreferences(it, Context.MODE_PRIVATE).edit().commit() }
     }
 
     /** The launcher icon as the Play Store wants it: 512 x 512, full square (the store applies the mask). */
@@ -85,6 +141,9 @@ class StoreAssetsSetup {
         private const val MODEL = "Basic"
         private const val TAG = "micro-review-demo"
         private const val LOG_TAG = "StoreAssets"
+
+        /** How much the see-through widget darkens the home screen wallpaper behind it, in percent. */
+        private const val WIDGET_FADE = 45
         private val CARDS = listOf(
             "Japan" to "Tokyo", "Australia" to "Canberra", "Canada" to "Ottawa", "Brazil" to "Brasília",
             "Kenya" to "Nairobi", "Norway" to "Oslo", "Peru" to "Lima", "Egypt" to "Cairo",
