@@ -22,13 +22,21 @@ object CardStateController {
      * Shows the next card from the selected decks.
      *
      * @param notifyIfNone whether to show the "deck finished" notification when there is no card
-     * @return the card now shown, or null if there is none
+     * @return the card now shown, or null if there is none (or AnkiDroid can't be read)
      */
     @JvmStatic
     fun showNextCard(context: Context, silent: Boolean, notifyIfNone: Boolean): CardInfo? = synchronized(lock) {
         val anki = AnkiDroidHelper(context)
         val deckIds = DeckSelection.load(context)
-        val card = anki.queryNextCard(deckIds)
+        val card = try {
+            anki.queryNextCard(deckIds)
+        } catch (e: AnkiQueryException) {
+            // Not "Bravo": the next card is unknown. The displayed (just answered) card stays stored, without its
+            // notification so it isn't offered again; the next sync shows the actual next card.
+            Log.e(TAG, "AnkiDroid can't be read, the next card is unknown", e)
+            cancelNotification(context)
+            return null
+        }
 
         if (card != null) {
             showCard(context, anki, card, silent)
@@ -53,16 +61,27 @@ object CardStateController {
         val deckIds = DeckSelection.load(context)
         val displayed = state?.takeIf { it.hasCard() }
         val firstCard = state == null
-        // With "Change the card at every unlock", the displayed card may be any card of the rotation set.
-        val rotation = if (deckIds.isNotEmpty() && ReviewSettings.isRotating(context)) {
-            anki.queryRotation(deckIds, ReviewSettings.rotationSize(context))
-        } else {
-            null
-        }
-        val next = when {
-            rotation != null -> rotation.firstOrNull()
-            deckIds.isNotEmpty() -> anki.queryNextCard(deckIds)
-            else -> null
+        var rotation: List<CardInfo>?
+        var next: CardInfo?
+        try {
+            // With "Change the card at every unlock", the displayed card may be any card of the rotation set.
+            rotation = if (deckIds.isNotEmpty() && ReviewSettings.isRotating(context)) {
+                anki.queryRotation(deckIds, ReviewSettings.rotationSize(context))
+            } else {
+                null
+            }
+            next = when {
+                rotation != null -> rotation.firstOrNull()
+                deckIds.isNotEmpty() -> anki.queryNextCard(deckIds)
+                else -> null
+            }
+        } catch (e: AnkiQueryException) {
+            // Unknown is not "nothing due": keep what is displayed, the next sync tries again (#111). The displayed
+            // card stands for the next one, so its notification is still posted again if it disappeared.
+            Log.e(TAG, "AnkiDroid can't be read, keeping the displayed card", e)
+            if (displayed == null || deckIds.isEmpty()) return CardSync.Action.NONE
+            rotation = null
+            next = displayed.toCardInfo()
         }
 
         val action = CardSync.decide(

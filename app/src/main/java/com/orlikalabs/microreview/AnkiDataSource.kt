@@ -30,12 +30,17 @@ interface AnkiDataSource {
 
     /**
      * The next [limit] due cards of the deck (subdecks included), in AnkiDroid's order, with their identifiers,
-     * button count, question (`QUESTION_SIMPLE`) and answer (`ANSWER_PURE`). Cards whose content can't be read
-     * are left out.
+     * button count, question (`QUESTION_SIMPLE`) and answer (`ANSWER_PURE`). A card removed meanwhile is left out.
+     *
+     * @throws AnkiQueryException if AnkiDroid can't be read: that's not "nothing due"
      */
     fun dueCards(deckId: Long, limit: Int): List<CardInfo>
 
-    /** The identifiers of the next [limit] due cards of the deck, without their content. */
+    /**
+     * The identifiers of the next [limit] due cards of the deck, without their content.
+     *
+     * @throws AnkiQueryException if AnkiDroid can't be read
+     */
     fun dueCardKeys(deckId: Long, limit: Int): List<CardSync.CardKey>
 
     /** Records an answer. [ease] is 1 to the card's button count. */
@@ -47,6 +52,12 @@ interface AnkiDataSource {
     /** Selects a deck in AnkiDroid. Returns whether it was selected. */
     fun selectDeck(deckId: Long): Boolean
 }
+
+/**
+ * AnkiDroid couldn't be read (permission revoked, API turned off, collection busy or not open, storage access lost):
+ * the due cards are unknown. Callers keep what they show rather than concluding that nothing is due (#111).
+ */
+class AnkiQueryException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
 
 /** The data source in use: AnkiDroid's ContentProvider, unless a test installed a fake. */
 object AnkiData {
@@ -106,7 +117,7 @@ class ContentProviderAnkiData(private val context: Context) : AnkiDataSource {
     }
 
     override fun dueCards(deckId: Long, limit: Int): List<CardInfo> {
-        if (!isPermissionGranted()) return emptyList()
+        if (!isPermissionGranted()) throw AnkiQueryException("AnkiDroid permission not granted")
         val cards = queryReviewInfo(deckId, limit, projection = null) { cursor ->
             CardInfo().apply {
                 cardOrd = cursor.getInt(cursor.getColumnIndexOrThrow(AnkiDroidContract.ReviewInfo.CARD_ORD))
@@ -125,7 +136,7 @@ class ContentProviderAnkiData(private val context: Context) : AnkiDataSource {
     }
 
     override fun dueCardKeys(deckId: Long, limit: Int): List<CardSync.CardKey> {
-        if (!isPermissionGranted()) return emptyList()
+        if (!isPermissionGranted()) throw AnkiQueryException("AnkiDroid permission not granted")
         val projection = arrayOf(AnkiDroidContract.ReviewInfo.NOTE_ID, AnkiDroidContract.ReviewInfo.CARD_ORD)
         return queryReviewInfo(deckId, limit, projection) { cursor ->
             CardSync.CardKey(
@@ -169,37 +180,50 @@ class ContentProviderAnkiData(private val context: Context) : AnkiDataSource {
         }
     }
 
-    /** Runs a due-card query (`ReviewInfo`, deck -1 = current deck) and maps each row. Empty on error. */
+    /**
+     * Runs a due-card query (`ReviewInfo`, deck -1 = current deck) and maps each row.
+     *
+     * @throws AnkiQueryException on a provider error, or when AnkiDroid's provider isn't reachable (null cursor)
+     */
     private fun <T> queryReviewInfo(deckId: Long, limit: Int, projection: Array<String>?, map: (Cursor) -> T): List<T> {
         val selection = if (deckId == -1L) "limit=?" else "limit=?,deckID=?"
         val arguments = if (deckId == -1L) arrayOf("$limit") else arrayOf("$limit", "$deckId")
         val rows = ArrayList<T>()
+        val cursor = try {
+            context.contentResolver.query(AnkiDroidContract.ReviewInfo.CONTENT_URI, projection, selection, arguments, null)
+        } catch (e: RuntimeException) {
+            throw AnkiQueryException("Could not read the due cards", e)
+        } ?: throw AnkiQueryException("AnkiDroid's provider is not reachable")
         try {
-            context.contentResolver.query(AnkiDroidContract.ReviewInfo.CONTENT_URI, projection, selection, arguments, null)?.use { cursor ->
-                while (cursor.moveToNext()) rows.add(map(cursor))
+            cursor.use {
+                while (it.moveToNext()) rows.add(map(it))
             }
         } catch (e: RuntimeException) {
-            Log.e(TAG, "Could not read due cards", e)
+            throw AnkiQueryException("Could not read the due cards", e)
         }
         return rows
     }
 
-    /** Reads the question and answer of [card]. Returns false if they can't be read. */
+    /**
+     * Reads the question and answer of [card]. Returns false if the card is gone (removed since the due-card query).
+     *
+     * @throws AnkiQueryException if AnkiDroid can't be read
+     */
     private fun readContent(card: CardInfo): Boolean {
         val uri = Uri.withAppendedPath(AnkiDroidContract.Note.CONTENT_URI, card.noteID.toString())
             .let { Uri.withAppendedPath(it, "cards") }
             .let { Uri.withAppendedPath(it, card.cardOrd.toString()) }
         val projection = arrayOf(AnkiDroidContract.Card.ANSWER_PURE, AnkiDroidContract.Card.QUESTION_SIMPLE)
-        return try {
-            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-                if (!cursor.moveToFirst()) return@use false
-                card.a = cursor.getString(cursor.getColumnIndexOrThrow(AnkiDroidContract.Card.ANSWER_PURE))
-                card.q = cursor.getString(cursor.getColumnIndexOrThrow(AnkiDroidContract.Card.QUESTION_SIMPLE))
-                true
-            } ?: false
+        val cursor = try {
+            context.contentResolver.query(uri, projection, null, null, null)
         } catch (e: RuntimeException) {
-            Log.e(TAG, "Could not read card ${card.noteID}/${card.cardOrd}", e)
-            false
+            throw AnkiQueryException("Could not read card ${card.noteID}/${card.cardOrd}", e)
+        } ?: throw AnkiQueryException("AnkiDroid's provider is not reachable")
+        return cursor.use {
+            if (!it.moveToFirst()) return@use false
+            card.a = it.getString(it.getColumnIndexOrThrow(AnkiDroidContract.Card.ANSWER_PURE))
+            card.q = it.getString(it.getColumnIndexOrThrow(AnkiDroidContract.Card.QUESTION_SIMPLE))
+            true
         }
     }
 

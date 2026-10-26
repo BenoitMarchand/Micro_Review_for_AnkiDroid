@@ -110,6 +110,8 @@ public class AnkiDroidHelper {
     /**
      * The first displayable card among the next {@code scanLimit} due cards of the deck, or null if they all
      * have to be skipped.
+     *
+     * @throws AnkiQueryException if AnkiDroid can't be read
      */
     public CardInfo queryCurrentScheduledCard(long deckID, int scanLimit) {
         List<CardInfo> cards = queryDisplayableCards(deckID, scanLimit);
@@ -118,6 +120,8 @@ public class AnkiDroidHelper {
 
     /**
      * The displayable cards among the next {@code scanLimit} due cards of the deck, in AnkiDroid's order.
+     *
+     * @throws AnkiQueryException if AnkiDroid can't be read: that's not "no card to show"
      */
     public List<CardInfo> queryDisplayableCards(long deckID, int scanLimit) {
         // This call requires com.ichi2.anki.permission.READ_WRITE_DATABASE to be granted by user as it is
@@ -126,7 +130,7 @@ public class AnkiDroidHelper {
             uiHandler.post(() -> Toast.makeText(mContext,
                     R.string.permission_not_granted,
                     Toast.LENGTH_SHORT).show());
-            return new ArrayList<>();
+            throw new AnkiQueryException("AnkiDroid permission not granted", null);
         }
         // Fetch several due cards so the ones we can't display (sound in the question) can be skipped.
         List<CardInfo> cards = mSource.dueCards(deckID, scanLimit);
@@ -157,6 +161,8 @@ public class AnkiDroidHelper {
      * Each deck is scanned up to its number of due cards (learning + review + new), so it is only passed over
      * once every due card in it has been skipped, or when nothing is due. Returns null when no selected deck
      * has a card to show.
+     *
+     * @throws AnkiQueryException if AnkiDroid can't be read
      */
     public CardInfo queryNextCard(List<Long> deckIds) {
         Map<Long, int[]> counts = getDeckCounts();
@@ -179,6 +185,8 @@ public class AnkiDroidHelper {
     /**
      * The rotation set of "Change the card at every unlock": the first {@code size} displayable due cards of the
      * decks, in order ({@link CardRotation#collect}).
+     *
+     * @throws AnkiQueryException if AnkiDroid can't be read
      */
     public List<CardInfo> queryRotation(List<Long> deckIds, int size) {
         Map<Long, int[]> counts = getDeckCounts();
@@ -220,7 +228,12 @@ public class AnkiDroidHelper {
         }
         int[] deckCounts = getDeckCounts().get(deckId);
         Integer due = deckCounts == null ? null : deckCounts[0] + deckCounts[1] + deckCounts[2];
-        return DeckScanner.isDue(new CardSync.CardKey(noteId, cardOrd), due, limit -> mSource.dueCardKeys(deckId, limit));
+        try {
+            return DeckScanner.isDue(new CardSync.CardKey(noteId, cardOrd), due, limit -> mSource.dueCardKeys(deckId, limit));
+        } catch (AnkiQueryException e) {
+            Log.e("Notifications", "could not check whether the card is still due", e);
+            return null;
+        }
     }
 
     /** Records the review in AnkiDroid; {@code timeTakenMs} is how long the card was looked at ({@link ReviewTimer}). */
