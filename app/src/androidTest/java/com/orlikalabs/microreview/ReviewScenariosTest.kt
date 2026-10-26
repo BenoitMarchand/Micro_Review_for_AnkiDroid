@@ -448,6 +448,46 @@ class ReviewScenariosTest {
     }
 
     @Test
+    fun cardQueriesFail_theSyncKeepsTheDisplayedCard_insteadOfBravo() {
+        anki.deck(1, "Spanish", FakeAnkiDataSource.Card(10, question = "Hola"))
+        select(1)
+        start()
+        anki.cardQueriesFail = true
+
+        assertEquals(CardSync.Action.NONE, CardStateController.syncWithAnkiDroid(context))
+
+        assertEquals(10L, storedState().noteID)
+        assertEquals("Anki • Spanish", notificationTitle())
+
+        // The notification disappeared meanwhile (reboot, swiped away): the displayed card is posted again.
+        notificationManager().cancel(Notifications.NOTIFICATION_ID)
+        assertEquals(CardSync.Action.REPOST, CardStateController.syncWithAnkiDroid(context))
+        assertEquals("Anki • Spanish", notificationTitle())
+    }
+
+    @Test
+    fun cardQueriesFailAfterAnAnswer_noBravo_andTheNextSyncShowsTheNextCard() {
+        anki.deck(
+            1, "Spanish",
+            FakeAnkiDataSource.Card(10, question = "Hola"),
+            FakeAnkiDataSource.Card(11, question = "Adiós"),
+        )
+        select(1)
+        start()
+        // The answer itself goes through; only the queries for the next card fail.
+        anki.cardQueriesFail = true
+
+        pressAnswer("ACTION_BUTTON_3")
+        waitUntil { anki.answers.isNotEmpty() && notificationManager().activeNotifications.none { it.id == Notifications.NOTIFICATION_ID } }
+
+        assertTrue(storedState().hasCard())
+        anki.cardQueriesFail = false
+        assertEquals(CardSync.Action.SHOW_NEXT, CardStateController.syncWithAnkiDroid(context))
+        assertEquals(11L, storedState().noteID)
+        assertEquals(listOf(FakeAnkiDataSource.Answer(10, 0, ease = 3)), anki.answers)
+    }
+
+    @Test
     fun mainScreen_deckQueryFails_showsRetryInsteadOfCrashing() {
         anki.deck(1, "Spanish", FakeAnkiDataSource.Card(10, question = "Hola"))
         select(1)

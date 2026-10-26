@@ -62,7 +62,15 @@ class FakeAnkiDataSource : AnkiDataSource {
         dueCards.mapValues { (_, cards) -> intArrayOf(0, cards.size, 0) }
     }
 
+    /**
+     * Whether the due-card queries fail, like the real source when AnkiDroid can't be read (collection busy,
+     * storage access lost): they throw [AnkiQueryException].
+     */
+    @Volatile
+    var cardQueriesFail = false
+
     override fun dueCards(deckId: Long, limit: Int): List<CardInfo> = withStudyQueue(deckId) {
+        if (cardQueriesFail) throw AnkiQueryException("No write access to AnkiDroid directory")
         dueCards[deckId].orEmpty().take(limit).map { card ->
             CardInfo().apply {
                 noteID = card.noteId
@@ -75,6 +83,7 @@ class FakeAnkiDataSource : AnkiDataSource {
     }
 
     override fun dueCardKeys(deckId: Long, limit: Int): List<CardSync.CardKey> = withStudyQueue(deckId) {
+        if (cardQueriesFail) throw AnkiQueryException("No write access to AnkiDroid directory")
         dueCards[deckId].orEmpty().take(limit).map { CardSync.CardKey(it.noteId, it.ord) }
     }
 
