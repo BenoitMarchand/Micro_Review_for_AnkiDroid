@@ -222,11 +222,13 @@ class MainActivity : ComponentActivity() {
             channel?.importance != NotificationManager.IMPORTANCE_NONE
 
         // The live wallpaper or the card picture.
-        val wallpaperActive = CardWallpaperService.isActive(this) || LockScreenPicture.isActive(this)
+        val liveWallpaper = CardWallpaperService.isActive(this)
+        val wallpaperActive = liveWallpaper || LockScreenPicture.isActive(this)
 
         return SetupStatus(
             notificationsEnabled = notificationsEnabled,
             wallpaperActive = wallpaperActive,
+            liveWallpaper = liveWallpaper,
             backgroundAllowed = !isBackgroundRestricted(),
         )
     }
