@@ -56,6 +56,12 @@ class ReviewScenariosTest {
         }
         notificationManager().cancel(Notifications.NOTIFICATION_ID)
         notificationManager().cancel(ScheduledReview.NOTIFICATION_ID)
+        // Cancelling is asynchronous: don't let a test read the notification of the previous one.
+        waitUntil {
+            notificationManager().activeNotifications.none {
+                it.id == Notifications.NOTIFICATION_ID || it.id == ScheduledReview.NOTIFICATION_ID
+            }
+        }
         AnkiData.override = anki
     }
 
@@ -452,6 +458,8 @@ class ReviewScenariosTest {
         anki.deck(1, "Spanish", FakeAnkiDataSource.Card(10, question = "Hola"))
         select(1)
         start()
+        // Posting is asynchronous: the sync must see the notification, or it posts it again.
+        assertEquals("Anki • Spanish", notificationTitle())
         anki.cardQueriesFail = true
 
         assertEquals(CardSync.Action.NONE, CardStateController.syncWithAnkiDroid(context))
@@ -461,6 +469,7 @@ class ReviewScenariosTest {
 
         // The notification disappeared meanwhile (reboot, swiped away): the displayed card is posted again.
         notificationManager().cancel(Notifications.NOTIFICATION_ID)
+        waitUntil { notificationManager().activeNotifications.none { it.id == Notifications.NOTIFICATION_ID } }
         assertEquals(CardSync.Action.REPOST, CardStateController.syncWithAnkiDroid(context))
         assertEquals("Anki • Spanish", notificationTitle())
     }
