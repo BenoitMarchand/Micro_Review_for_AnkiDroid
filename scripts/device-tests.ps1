@@ -35,41 +35,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
-$AppId = 'com.ankidroid.companion'
-$BootTimeoutSeconds = 300
+$AppId = 'com.orlikalabs.microreview'
+# Package of the classes (the namespace); the same as the application ID, but they may differ
+$ClassPackage = 'com.orlikalabs.microreview'
 
 . (Join-Path $PSScriptRoot 'android-env.ps1')
-
-function Wait-ForBoot([string]$Adb, [string]$DeviceSerial) {
-    $deadline = (Get-Date).AddSeconds($BootTimeoutSeconds)
-    & $Adb -s $DeviceSerial wait-for-device
-    while ((& $Adb -s $DeviceSerial shell getprop sys.boot_completed 2>$null) -ne '1') {
-        if ((Get-Date) -gt $deadline) { Fail "The emulator didn't finish booting within $BootTimeoutSeconds s." }
-        Start-Sleep -Seconds 2
-    }
-}
-
-function Start-Emulator([string]$Adb) {
-    $emulator = Join-Path $env:ANDROID_HOME 'emulator\emulator.exe'
-    if (-not (Test-Path $emulator)) { Fail 'The Android emulator is not installed (Android Studio > SDK Manager > SDK Tools).' }
-    $name = $Avd
-    if (-not $name) {
-        $name = & $emulator -list-avds | Where-Object { $_.Trim() } | Select-Object -First 1
-        if (-not $name) { Fail 'No emulator found. Create one in Android Studio (Device Manager), or pass -Serial.' }
-    }
-    $before = @(Get-Devices $Adb | ForEach-Object Serial)
-    Write-Host "    starting $name"
-    Start-Process -FilePath $emulator -ArgumentList @('-avd', $name, '-no-snapshot-save', '-no-boot-anim') -WindowStyle Minimized | Out-Null
-    $deadline = (Get-Date).AddSeconds($BootTimeoutSeconds)
-    while ($true) {
-        $new = Get-Devices $Adb | Where-Object { $_.Serial -like 'emulator-*' -and $_.Serial -notin $before } | Select-Object -First 1
-        if ($new) { break }
-        if ((Get-Date) -gt $deadline) { Fail "The emulator $name didn't start within $BootTimeoutSeconds s." }
-        Start-Sleep -Seconds 2
-    }
-    Wait-ForBoot $Adb $new.Serial
-    return $new.Serial
-}
 
 $adb = Initialize-AndroidEnv
 & $adb start-server | Out-Null
@@ -90,7 +60,7 @@ if ($Serial) {
     if ($running) {
         $deviceSerial = $running.Serial
     } else {
-        $deviceSerial = Start-Emulator $adb
+        $deviceSerial = Start-Emulator $adb $Avd -NoSnapshotSave
         $started = $true
     }
 }
@@ -116,7 +86,7 @@ try {
     if ($LASTEXITCODE -ne 0) { Fail 'Could not install the tests.' }
 
     Write-Step 'Running the device tests'
-    $output = & $adb -s $deviceSerial shell am instrument -w -e notClass "$AppId.AnkiDroidProbeTest" "$AppId.test/androidx.test.runner.AndroidJUnitRunner"
+    $output = & $adb -s $deviceSerial shell am instrument -w -e notClass "$ClassPackage.AnkiDroidProbeTest" "$AppId.test/androidx.test.runner.AndroidJUnitRunner"
     $output | ForEach-Object { Write-Host $_ }
     if ($output -match '^OK \(\d+ tests?\)') {
         Write-Host 'All device tests passed.' -ForegroundColor Green

@@ -5,7 +5,8 @@
 .DESCRIPTION
     1. Locates the Android SDK (adb) and a JDK 17 or newer (required by Gradle 9 / AGP 9).
     2. Detects connected devices (USB or Wi-Fi debugging) and lets you pick one if several are connected.
-    3. Runs `gradlew installDebug` on that device, then starts MainActivity.
+    3. Runs `gradlew installDebug` on that device, prints the installed version (and the one it replaced),
+       then starts MainActivity.
 
 .PARAMETER Serial
     Device serial to use (see `adb devices`). Skips the device prompt.
@@ -39,7 +40,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
-$AppId = 'com.ankidroid.companion'
+$AppId = 'com.orlikalabs.microreview'
+# Package of the classes (the namespace); the same as the application ID, but they may differ
+$ClassPackage = 'com.orlikalabs.microreview'
 $LogTags = @('CardWallpaper', 'Notifications', 'BackgroundService')
 
 # Shared helpers: Write-Step, Fail, Find-AndroidSdk, Find-Jdk, Get-Devices.
@@ -85,6 +88,16 @@ function Select-Device([string]$Adb) {
     }
 }
 
+# The app's version on the device, as "0.4.0-rc1 (code 52)", or $null when it isn't installed.
+function Get-InstalledVersion([string]$Adb, [string]$DeviceSerial) {
+    $info = & $Adb -s $DeviceSerial shell dumpsys package $AppId 2>$null | Out-String
+    $name = [regex]::Match($info, 'versionName=(\S+)')
+    $code = [regex]::Match($info, 'versionCode=(\d+)')
+    if (-not $name.Success) { return $null }
+    if ($code.Success) { return "$($name.Groups[1].Value) (code $($code.Groups[1].Value))" }
+    return $name.Groups[1].Value
+}
+
 # --- Main --------------------------------------------------------------------
 
 $adb = Initialize-AndroidEnv
@@ -93,6 +106,7 @@ Write-Step 'Detecting devices'
 & $adb start-server | Out-Null
 $device = Select-Device $adb
 Write-Host "    $($device.Serial)  $($device.Model)"
+$previousVersion = Get-InstalledVersion $adb $device.Serial
 
 Write-Step 'Building and installing the debug APK'
 $env:ANDROID_SERIAL = $device.Serial
@@ -103,6 +117,10 @@ try {
 } finally {
     Pop-Location
 }
+
+$installedVersion = Get-InstalledVersion $adb $device.Serial
+$was = if ($previousVersion) { "was $previousVersion" } else { 'not installed before' }
+Write-Host "    Installed version $installedVersion ($was)" -ForegroundColor Green
 
 if ($Probe) {
     Write-Step 'Running the AnkiDroid probe'
@@ -118,13 +136,13 @@ if ($Probe) {
     # "am kill" only stops AnkiDroid if it's in the background: work in progress on screen is never lost.
     & $adb -s $device.Serial shell am kill com.ichi2.anki
     & $adb -s $device.Serial logcat -c
-    & $adb -s $device.Serial shell am instrument -w -e class "$AppId.AnkiDroidProbeTest" "$AppId.test/androidx.test.runner.AndroidJUnitRunner"
+    & $adb -s $device.Serial shell am instrument -w -e class "$ClassPackage.AnkiDroidProbeTest" "$AppId.test/androidx.test.runner.AndroidJUnitRunner"
     & $adb -s $device.Serial logcat -d -s AnkiProbe:I
 }
 
 if (-not $NoLaunch) {
     Write-Step 'Launching the app'
-    & $adb -s $device.Serial shell am start -n "$AppId/.MainActivity" | Out-Null
+    & $adb -s $device.Serial shell am start -n "$AppId/$ClassPackage.MainActivity" | Out-Null
 }
 
 Write-Host 'Done.' -ForegroundColor Green
