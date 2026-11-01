@@ -69,7 +69,7 @@ class StoreAssetsSetup {
      */
     @Test
     fun prepareScenarios() {
-        ReviewSettings.setSeveralInARow(context, false)
+        ReviewSettings.setCardsPerUnlock(context, 1)
         ReviewSettings.setRotateOnUnlock(context, false)
         ReviewSettings.setReviewMode(context, ReviewSettings.ReviewMode.NOTIFICATION)
         ScheduledReviewSettings.setEnabled(context, false)

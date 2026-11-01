@@ -8,7 +8,7 @@ import android.provider.Settings
  * Tracks a lock session (from locking the phone to unlocking it). With the lock screen wallpaper set, the card
  * notification is only visible while the phone is locked: it is removed at every unlock and posted again at the
  * next lock. By default, one card is reviewed per session: after the answer, the next card waits for the next
- * lock ("Next card at your next unlock"), unless "Review several cards in a row" is on.
+ * lock ("Next card at your next unlock"). "Cards per unlock" changes that number, or removes the limit.
  *
  * With "Open after unlock" ([ReviewSettings.ReviewMode]), there is no card notification: the card is only on the
  * wallpaper, and the review screen opens when the phone is unlocked.
@@ -21,7 +21,7 @@ object LockSession {
     private const val KEY_LOCKED = "locked"
     private const val KEY_HIDDEN = "notification_hidden"
     const val KEY_WAITING = "waiting_for_next_lock"
-    private const val KEY_ANSWERED = "answered"
+    private const val KEY_ANSWERS = "answers"
     private const val KEY_VISIBLE_SINCE = "card_visible_since"
 
     enum class AfterAnswer {
@@ -32,9 +32,16 @@ object LockSession {
         WAIT_FOR_NEXT_LOCK,
     }
 
-    /** What to do after a card is answered. Without the wallpaper, the next lock can't be detected. */
-    fun afterAnswer(wallpaperActive: Boolean, severalInARow: Boolean): AfterAnswer =
-        if (wallpaperActive && !severalInARow) AfterAnswer.WAIT_FOR_NEXT_LOCK else AfterAnswer.SHOW_NEXT
+    /**
+     * What to do after a card is answered, the session's [answers]th. Without the wallpaper, the next lock can't be
+     * detected.
+     */
+    fun afterAnswer(wallpaperActive: Boolean, answers: Int, cardsPerUnlock: Int): AfterAnswer =
+        if (wallpaperActive && cardsPerUnlock != ReviewSettings.NO_LIMIT && answers >= cardsPerUnlock) {
+            AfterAnswer.WAIT_FOR_NEXT_LOCK
+        } else {
+            AfterAnswer.SHOW_NEXT
+        }
 
     /**
      * Whether the card notification may be posted now; otherwise it waits for the next lock. With "Open after
@@ -64,7 +71,7 @@ object LockSession {
         prefs.edit()
             .putBoolean(KEY_LOCKED, true)
             .putBoolean(KEY_WAITING, false)
-            .putBoolean(KEY_ANSWERED, false)
+            .putInt(KEY_ANSWERS, 0)
             .putLong(KEY_VISIBLE_SINCE, 0)
             .apply()
         return prefs.getBoolean(KEY_HIDDEN, false)
@@ -102,7 +109,7 @@ object LockSession {
             // it is closed without an answer.
             enabled = started && ReviewSettings.rotateOnUnlock(context) && !openAfterUnlock,
             wasLocked = wasLocked,
-            answered = prefs.getBoolean(KEY_ANSWERED, false),
+            answered = prefs.getInt(KEY_ANSWERS, 0) > 0,
             visibleSince = prefs.getLong(KEY_VISIBLE_SINCE, 0),
             now = now,
         )
@@ -112,9 +119,10 @@ object LockSession {
 
     /** A card was answered from the notification. Returns what to do next. */
     fun onAnswered(context: Context): AfterAnswer {
-        val after = afterAnswer(CardWallpaperService.isActive(context), ReviewSettings.severalInARow(context))
+        val answers = prefs(context).getInt(KEY_ANSWERS, 0) + 1
+        val after = afterAnswer(CardWallpaperService.isActive(context), answers, ReviewSettings.cardsPerUnlock(context))
         prefs(context).edit()
-            .putBoolean(KEY_ANSWERED, true)
+            .putInt(KEY_ANSWERS, answers)
             .apply { if (after == AfterAnswer.WAIT_FOR_NEXT_LOCK) putBoolean(KEY_WAITING, true) }
             .apply()
         return after
@@ -157,10 +165,17 @@ object LockSession {
 /** User choices about reviewing. */
 object ReviewSettings {
     private const val PREFS = "com.ankidroid.companion.review_settings"
+    private const val KEY_CARDS_PER_UNLOCK = "cards_per_unlock"
+
+    /** The switch "Cards per unlock" replaced: still read, on means no limit. */
     private const val KEY_SEVERAL_IN_A_ROW = "several_in_a_row"
     private const val KEY_ROTATE_ON_UNLOCK = "rotate_on_unlock"
     private const val KEY_ROTATION_SIZE = "rotation_size"
     private const val KEY_REVIEW_MODE = "review_mode"
+
+    /** "Cards per unlock": the next card always comes right away. */
+    const val NO_LIMIT = 0
+    const val MAX_CARDS_PER_UNLOCK = 10
 
     /** How the card is reviewed from the lock screen. */
     enum class ReviewMode {
@@ -196,11 +211,15 @@ object ReviewSettings {
     fun canOpenAfterUnlock(context: Context): Boolean = Settings.canDrawOverlays(context)
 
 
-    /** "Review several cards in a row": off by default, one card per lock session. */
-    fun severalInARow(context: Context): Boolean = prefs(context).getBoolean(KEY_SEVERAL_IN_A_ROW, false)
+    /** "Cards per unlock": 1 to [MAX_CARDS_PER_UNLOCK] or [NO_LIMIT]; one card per lock session by default. */
+    fun cardsPerUnlock(context: Context): Int {
+        val prefs = prefs(context)
+        val default = if (prefs.getBoolean(KEY_SEVERAL_IN_A_ROW, false)) NO_LIMIT else 1
+        return prefs.getInt(KEY_CARDS_PER_UNLOCK, default).takeIf { it in NO_LIMIT..MAX_CARDS_PER_UNLOCK } ?: default
+    }
 
-    fun setSeveralInARow(context: Context, enabled: Boolean) {
-        prefs(context).edit().putBoolean(KEY_SEVERAL_IN_A_ROW, enabled).apply()
+    fun setCardsPerUnlock(context: Context, cards: Int) {
+        prefs(context).edit().putInt(KEY_CARDS_PER_UNLOCK, cards).apply()
     }
 
     /** "Change the card at every unlock": off by default. Only works with the lock screen wallpaper. */

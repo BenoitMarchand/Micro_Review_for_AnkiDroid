@@ -25,7 +25,7 @@ Micro Review for AnkiDroid is an extension app for the AnkiDroid flashcard app. 
 
 - **Several decks, in your order**: select the decks to review in the deck tree and put them in order. Cards come from the first deck that has a card to review, then the next one, and so on. A deck includes its subdecks.
 
-- **One card per unlock**: with the lock screen wallpaper set, the card notification is only visible while the phone is locked: it is removed at every unlock and comes back at the next lock. After you answer, "Next card at your next unlock" is shown for a few seconds: one card each time you unlock, as a small habit. Turn on **Review several cards in a row** in Settings to get the next card right away instead. Without the wallpaper, the notification stays visible and cards follow each other.
+- **One card per unlock**: with the lock screen wallpaper set, the card notification is only visible while the phone is locked: it is removed at every unlock and comes back at the next lock. After you answer, "Next card at your next unlock" is shown for a few seconds: one card each time you unlock, as a small habit. Choose **Cards per unlock** in Settings to review up to 10 cards each time, or with no limit. Without the wallpaper, the notification stays visible and cards follow each other.
 
 - **Change the card at every unlock** (optional): if you unlock without answering, another due card comes at the next lock, rotating through the first due cards of your decks (how many is up to you). Skipped cards stay due in AnkiDroid, and after an answer the first card comes back.
 

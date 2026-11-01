@@ -9,18 +9,25 @@ class LockSessionTest {
 
     @Test
     fun oneReviewPerSessionByDefault() {
-        assertEquals(LockSession.AfterAnswer.WAIT_FOR_NEXT_LOCK, LockSession.afterAnswer(wallpaperActive = true, severalInARow = false))
+        assertEquals(LockSession.AfterAnswer.WAIT_FOR_NEXT_LOCK, LockSession.afterAnswer(wallpaperActive = true, answers = 1, cardsPerUnlock = 1))
     }
 
     @Test
-    fun severalInARowShowsTheNextCardRightAway() {
-        assertEquals(LockSession.AfterAnswer.SHOW_NEXT, LockSession.afterAnswer(wallpaperActive = true, severalInARow = true))
+    fun nextCardComesRightAwayUntilTheSessionsCardsAreReviewed() {
+        assertEquals(LockSession.AfterAnswer.SHOW_NEXT, LockSession.afterAnswer(wallpaperActive = true, answers = 1, cardsPerUnlock = 3))
+        assertEquals(LockSession.AfterAnswer.SHOW_NEXT, LockSession.afterAnswer(wallpaperActive = true, answers = 2, cardsPerUnlock = 3))
+        assertEquals(LockSession.AfterAnswer.WAIT_FOR_NEXT_LOCK, LockSession.afterAnswer(wallpaperActive = true, answers = 3, cardsPerUnlock = 3))
+    }
+
+    @Test
+    fun noLimitShowsTheNextCardRightAway() {
+        assertEquals(LockSession.AfterAnswer.SHOW_NEXT, LockSession.afterAnswer(wallpaperActive = true, answers = 50, cardsPerUnlock = ReviewSettings.NO_LIMIT))
     }
 
     @Test
     fun withoutTheWallpaperTheNextCardIsShownRightAway() {
         // Without screen events, the next lock can't be detected.
-        assertEquals(LockSession.AfterAnswer.SHOW_NEXT, LockSession.afterAnswer(wallpaperActive = false, severalInARow = false))
+        assertEquals(LockSession.AfterAnswer.SHOW_NEXT, LockSession.afterAnswer(wallpaperActive = false, answers = 1, cardsPerUnlock = 1))
     }
 
     @Test

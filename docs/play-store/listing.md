@@ -25,7 +25,7 @@ REVIEW FROM THE LOCK SCREEN
 
 ANSWER FROM A NOTIFICATION
 • The card's notification is visible on the lock screen: expand it, tap Show answer, then Again, Hard, Good or Easy. Only the buttons the card actually has are shown.
-• One card per unlock: after your answer, the next card waits for your next unlock. A small habit, never a chore. Prefer longer sessions? Turn on "Review several cards in a row".
+• One card per unlock: after your answer, the next card waits for your next unlock. A small habit, never a chore. Prefer longer sessions? Choose up to 10 cards per unlock, or no limit.
 
 HOME SCREEN WIDGET
 • Add the Card widget and tap Start review: question, Show answer, answer buttons, then the next card right away.

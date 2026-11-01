@@ -25,7 +25,7 @@ object CardReview {
 
     /**
      * Answers the displayed card with [button] (one of [AnswerButtons]) and stores the next card. The next card
-     * is shown right away, or, with one review per lock session, at the next lock ("Next card at your next unlock").
+     * is shown right away, or, once the lock session's cards are reviewed, at the next lock ("Next card at your next unlock").
      * With no card left, the notification is removed.
      *
      * Only if [card], the card the button was shown with, is still the displayed one: otherwise the tap came late
@@ -63,7 +63,7 @@ object CardReview {
                 anki.reviewCard(localState.noteID, localState.cardOrd, ease, timeTaken)
             }
 
-            // With one review per session, the next card is stored now but its notification waits for the next lock.
+            // After the session's last review, the next card is stored now but its notification waits for the next lock.
             CardStateController.showNextCard(context, silent = true)
             // Only while locked: unlocked (answered from a scheduled review), the lock screen notification stays hidden.
             // Not with no card left: no next card to announce. The stored card stays if AnkiDroid couldn't be read.

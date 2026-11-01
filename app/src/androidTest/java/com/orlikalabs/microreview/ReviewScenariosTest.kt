@@ -593,7 +593,7 @@ class ReviewScenariosTest {
         assertEquals(listOf(FakeAnkiDataSource.Answer(10, 0, ease = 3)), anki.answers)
         assertEquals(11L, storedState().noteID)
         // The home screen always moves on: the lock screen still has its review to do.
-        assertFalse(LockSession.prefs(context).getBoolean("answered", false))
+        assertEquals(0, LockSession.prefs(context).getInt("answers", 0))
         assertFalse(LockSession.isWaitingForNextLock(context))
     }
 

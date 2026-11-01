@@ -62,7 +62,7 @@ class ReviewActivity : ComponentActivity() {
         data object Done : ReviewState
         data object NotStarted : ReviewState
 
-        /** This session's card was answered: the next one comes at the next unlock. */
+        /** This session's cards were answered: the next one comes at the next unlock. */
         data object WaitingForNextUnlock : ReviewState
     }
 
@@ -155,7 +155,7 @@ class ReviewActivity : ComponentActivity() {
             if (state == ReviewState.Done) {
                 finish()
             } else if (state == ReviewState.WaitingForNextUnlock) {
-                // One card per unlock: show the message for a moment, then get out of the way.
+                // This unlock's cards are reviewed: show the message for a moment, then get out of the way.
                 delay(CLOSE_DELAY_MS)
                 finish()
             }
