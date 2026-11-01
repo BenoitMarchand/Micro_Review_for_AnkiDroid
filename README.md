@@ -57,7 +57,7 @@ Micro Review for AnkiDroid is an extension app for the AnkiDroid flashcard app. 
 
 5. **Optional, lock screen**: tap **Set lock screen wallpaper** and follow the instructions to choose Micro Review for AnkiDroid for the **lock screen only**. Where that isn't possible (Android 8 to 13, some phones), the app offers to set a picture of the card on the lock screen instead: it replaces your current lock screen picture. In **Settings** (gear icon), choose what the lock screen shows, change its look, and choose how to review (notification or review screen after unlock).
 
-6. **When you're done**: when no selected deck has a card left, you'll see "Bravo! You've finished all cards in the selected decks." A new notification comes when it's time to study again.
+6. **When you're done**: once you answer the last card of the selected decks, the notification and the review screen close by themselves, and the lock screen and the app show "Bravo! You've finished all cards in the selected decks." A new notification comes when it's time to study again.
 
 
 ## Limitations

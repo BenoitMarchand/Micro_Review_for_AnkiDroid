@@ -58,7 +58,7 @@ class StoreAssetsSetup {
         }
 
         DeckSelection.save(context, listOf(deckId))
-        CardStateController.showNextCard(context, silent = true, notifyIfNone = false)
+        CardStateController.showNextCard(context, silent = true)
         flush()
         Log.i(LOG_TAG, "demo deck $deckId reset with ${CARDS.size} cards")
     }

@@ -90,10 +90,11 @@ class CardWallpaperService : WallpaperService() {
         // The notification was removed at the last unlock (or held back): show the current card again, unless it
         // must not be posted ("Open after unlock").
         if (LockSession.onLocked(this) && LockSession.mayPostNow(this)) {
-            val state = AnkiDroidHelper(this).storedState
+            // With no card left, the wallpaper shows "Bravo": no notification.
+            val state = AnkiDroidHelper(this).storedState?.takeIf { it.hasCard() }
             if (state != null) {
                 Log.i(TAG, "posting the card notification again")
-                Notifications.create().showNotification(this, state.takeIf { it.hasCard() }?.toCardInfo(), state.deckName, true)
+                Notifications.create().showNotification(this, state.toCardInfo(), state.deckName, true)
             }
         }
         // AnkiDroid doesn't report changes: check the displayed card is still the right one (throttled).
@@ -327,9 +328,9 @@ class CardWallpaperService : WallpaperService() {
         fun cardContent(context: Context, waitingForNextLock: Boolean): CardContent {
             val state = AnkiDroidHelper(context).storedState
                 ?: return CardContent(context.getString(R.string.wallpaper_not_started))
+            if (!state.hasCard()) return CardContent(context.getString(R.string.all_cards_done))
             // This session's card was answered: the next one comes at the next lock.
             if (waitingForNextLock) return CardContent(context.getString(R.string.next_card_at_next_unlock))
-            if (!state.hasCard()) return CardContent(context.getString(R.string.all_cards_done))
             // A card stored by an older version may have nothing left to show (e.g. a sound-only question).
             val question = CardText.clean(state.question)
                 .ifEmpty { return CardContent(context.getString(R.string.wallpaper_not_started)) }

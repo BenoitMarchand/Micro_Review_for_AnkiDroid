@@ -50,8 +50,8 @@ import kotlinx.coroutines.withContext
 /**
  * Review screen of "Open after unlock" ([ReviewSettings.ReviewMode]): opened by the lock screen wallpaper when the
  * phone is unlocked, with the card that was on the lock screen: question, "Show answer", then the answer and the
- * answer buttons. Closed when it is left; closing it without an answer counts as an unanswered card ("Change
- * the card at every unlock").
+ * answer buttons. Closed when it is left or when the answer leaves no card to review; closing it without an answer
+ * counts as an unanswered card ("Change the card at every unlock").
  */
 class ReviewActivity : ComponentActivity() {
 
@@ -117,9 +117,10 @@ class ReviewActivity : ComponentActivity() {
 
     private fun currentState(): ReviewState {
         val context = applicationContext
+        val stored = AnkiDroidHelper(context).storedState
+        if (stored?.hasCard() == false) return ReviewState.Done
         if (LockSession.isWaitingForNextLock(context)) return ReviewState.WaitingForNextUnlock
-        val stored = AnkiDroidHelper(context).storedState ?: return ReviewState.NotStarted
-        if (!stored.hasCard()) return ReviewState.Done
+        if (stored == null) return ReviewState.NotStarted
         val card = stored.toCardInfo()
         // The card is seen from now on: the review time runs from here (the unlock cleared the timer).
         ReviewTimer.onCardSeen(context, CardSync.CardKey(card.noteID, card.cardOrd))
@@ -150,8 +151,11 @@ class ReviewActivity : ComponentActivity() {
                 }
                 currentState()
             }
-            // One card per unlock: show the message for a moment, then get out of the way.
-            if (state == ReviewState.WaitingForNextUnlock) {
+            // No card left: the review is over.
+            if (state == ReviewState.Done) {
+                finish()
+            } else if (state == ReviewState.WaitingForNextUnlock) {
+                // One card per unlock: show the message for a moment, then get out of the way.
                 delay(CLOSE_DELAY_MS)
                 finish()
             }

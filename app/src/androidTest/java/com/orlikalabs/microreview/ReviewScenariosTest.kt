@@ -11,6 +11,7 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -159,6 +160,29 @@ class ReviewScenariosTest {
 
         assertEquals(listOf(FakeAnkiDataSource.Answer(10, 0, ease = 3)), anki.answers)
         assertEquals("Anki • Spanish", notificationTitle())
+    }
+
+    @Test
+    fun answeringTheLastCard_removesTheNotification_insteadOfBravo() {
+        anki.deck(1, "Spanish", FakeAnkiDataSource.Card(10, question = "Hola"))
+        select(1)
+        start()
+        assertEquals("Anki • Spanish", notificationTitle())
+
+        pressAnswer("ACTION_BUTTON_3")
+        waitUntil {
+            anki.answers.isNotEmpty() && !storedState().hasCard() &&
+                notificationManager().activeNotifications.none { it.id == Notifications.NOTIFICATION_ID }
+        }
+        // The system posts asynchronously: give a notification time to (not) come.
+        SystemClock.sleep(500)
+
+        assertTrue(notificationManager().activeNotifications.none { it.id == Notifications.NOTIFICATION_ID })
+        // No "next card" to announce on the lock screen either.
+        assertEquals(
+            context.getString(R.string.all_cards_done),
+            CardWallpaperService.cardContent(context, waitingForNextLock = true).text,
+        )
     }
 
     @Test
@@ -450,6 +474,23 @@ class ReviewScenariosTest {
             assertEquals(listOf(FakeAnkiDataSource.Answer(10, 0, ease = 3)), anki.answers)
             // Without the wallpaper there is no lock session: the next card comes right away.
             waitForText("Adiós")
+        }
+    }
+
+    @Test
+    fun reviewScreen_answeringTheLastCard_closesTheScreen() {
+        anki.deck(1, "Spanish", FakeAnkiDataSource.Card(10, question = "Hola", answer = "Hello"))
+        select(1)
+        start()
+
+        ActivityScenario.launch<ReviewActivity>(ReviewActivity.intent(context)).use { scenario ->
+            waitForText("Hola")
+            compose.onNodeWithText(context.getString(R.string.show_answer)).performClick()
+            waitForText("Hello")
+            compose.onNodeWithText(context.getString(R.string.good)).performClick()
+
+            waitUntil { scenario.state == Lifecycle.State.DESTROYED }
+            assertEquals(listOf(FakeAnkiDataSource.Answer(10, 0, ease = 3)), anki.answers)
         }
     }
 
