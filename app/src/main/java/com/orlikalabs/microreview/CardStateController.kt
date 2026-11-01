@@ -19,13 +19,13 @@ object CardStateController {
     private val background = Executors.newSingleThreadExecutor()
 
     /**
-     * Shows the next card from the selected decks.
+     * Shows the next card from the selected decks. With no card left, the notification is removed: the review is
+     * over, and the lock screen and the app show "Bravo".
      *
-     * @param notifyIfNone whether to show the "deck finished" notification when there is no card
      * @return the card now shown, or null if there is none (or AnkiDroid can't be read)
      */
     @JvmStatic
-    fun showNextCard(context: Context, silent: Boolean, notifyIfNone: Boolean): CardInfo? = synchronized(lock) {
+    fun showNextCard(context: Context, silent: Boolean): CardInfo? = synchronized(lock) {
         val anki = AnkiDroidHelper(context)
         val deckIds = DeckSelection.load(context)
         val card = try {
@@ -40,8 +40,10 @@ object CardStateController {
 
         if (card != null) {
             showCard(context, anki, card, silent)
-        } else if (notifyIfNone) {
-            showDone(context, anki, deckIds, silent)
+        } else {
+            storeDone(context, anki, deckIds)
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            manager.cancel(Notifications.NOTIFICATION_ID)
         }
         card
     }
@@ -171,6 +173,11 @@ object CardStateController {
     }
 
     private fun showDone(context: Context, anki: AnkiDroidHelper, deckIds: List<Long>, silent: Boolean) {
+        storeDone(context, anki, deckIds)
+        post(context, null, "", silent)
+    }
+
+    private fun storeDone(context: Context, anki: AnkiDroidHelper, deckIds: List<Long>) {
         Log.i(TAG, "no card to review in the selected decks")
         val emptyCard = CardInfo()
         emptyCard.cardOrd = -1
@@ -179,7 +186,6 @@ object CardStateController {
         StandardCardWidget.updateAll(context)
         LockScreenPicture.update(context)
         ScheduledReview.cancel(context)
-        post(context, null, "", silent)
     }
 
     /** No deck selected: back to "not started", without a notification. */
