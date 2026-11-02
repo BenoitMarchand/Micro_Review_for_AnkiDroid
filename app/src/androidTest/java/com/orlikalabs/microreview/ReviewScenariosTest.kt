@@ -5,8 +5,12 @@ import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Rect
 import android.os.Build
 import android.os.SystemClock
+import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -552,6 +556,53 @@ class ReviewScenariosTest {
         }
     }
 
+    @Test
+    fun longCard_keepsItsButtonsVisibleInTheNotification() {
+        val long = "A very long sentence on a card, repeated many times. ".repeat(40)
+        anki.deck(1, "Spanish", FakeAnkiDataSource.Card(10, question = long, answer = long))
+        select(1)
+        start()
+
+        assertFullyVisible(R.id.buttonShowAnswer)
+
+        press(Notifications.ACTION_SHOW_ANSWER)
+        waitUntil { CardReview.isAnswerRevealed(context, storedState().toCardInfo()) }
+        waitUntil { expandedNotification().findViewById<View>(R.id.buttonShowAnswer).visibility == View.GONE }
+
+        assertFullyVisible(R.id.button3)
+    }
+
+    /** The expanded notification in the system's template, at the largest height Android gives it. */
+    private fun expandedNotification(): ViewGroup {
+        var notification: Notification? = null
+        waitUntil {
+            notification = notificationManager().activeNotifications.firstOrNull { it.id == Notifications.NOTIFICATION_ID }?.notification
+            notification != null
+        }
+        val density = context.resources.displayMetrics.density
+        lateinit var root: ViewGroup
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            val views = Notification.Builder.recoverBuilder(context, notification).createBigContentView()
+            root = views.apply(context, FrameLayout(context)) as ViewGroup
+            root.measure(
+                View.MeasureSpec.makeMeasureSpec((360 * density).toInt(), View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec((MAX_EXPANDED_NOTIFICATION_DP * density).toInt(), View.MeasureSpec.AT_MOST),
+            )
+            root.layout(0, 0, root.measuredWidth, root.measuredHeight)
+        }
+        return root
+    }
+
+    private fun assertFullyVisible(buttonId: Int) {
+        val root = expandedNotification()
+        val button = root.findViewById<View>(buttonId)
+        val bounds = Rect(0, 0, button.width, button.height)
+        root.offsetDescendantRectToMyCoords(button, bounds)
+        val density = context.resources.displayMetrics.density
+        assertTrue("button height: ${bounds.height()}", bounds.height() >= (40 * density).toInt())
+        assertTrue("button bottom ${bounds.bottom}, notification height ${root.height}", bounds.bottom <= root.height)
+    }
+
     /** The review screen loads its card off the main thread: wait for it to show up. */
     private fun waitForText(text: String) {
         compose.waitUntil(5_000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
@@ -668,5 +719,10 @@ class ReviewScenariosTest {
             if (SystemClock.uptimeMillis() > end) throw AssertionError("condition not met within $timeoutMs ms")
             SystemClock.sleep(50)
         }
+    }
+
+    private companion object {
+        /** The maximum height of an expanded custom notification. */
+        const val MAX_EXPANDED_NOTIFICATION_DP = 256
     }
 }

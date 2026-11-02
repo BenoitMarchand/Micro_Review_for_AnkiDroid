@@ -27,6 +27,11 @@ class Notifications {
 
         /** How long "Next card at your next unlock" stays before disappearing. */
         private const val NEXT_CARD_MESSAGE_TIMEOUT_MS = 5_000L
+
+        /** Lines of a long text, so the question and the answer both show: alone, the question gets more. */
+        private const val MAX_LINES_QUESTION_ALONE = 8
+        private const val MAX_LINES_QUESTION_WITH_ANSWER = 3
+        private const val MAX_LINES_ANSWER = 4
         private const val LEGACY_CHANNEL_ID = "channel_id"
 
         fun create(): Notifications = Notifications()
@@ -84,8 +89,8 @@ class Notifications {
             collapsedView.setTextViewText(R.id.textViewCollapsedHeader, CardText.clean(card.q))
             collapsedView.setTextViewText(R.id.textViewCollapsedTitle, title)
 
-            val expandedView = cardView(context, card)
-            expandedView.setViewVisibility(R.id.answerGroup, if (revealed) View.VISIBLE else View.GONE)
+            val expandedView = cardView(context, card, revealed)
+            expandedView.setViewVisibility(R.id.answerButtons, if (revealed) View.VISIBLE else View.GONE)
             expandedView.setViewVisibility(R.id.buttonShowAnswer, if (revealed) View.GONE else View.VISIBLE)
             expandedView.setOnClickPendingIntent(R.id.buttonShowAnswer, createIntent(context, ACTION_SHOW_ANSWER))
 
@@ -148,9 +153,7 @@ class Notifications {
         collapsedView.setTextViewText(R.id.textViewCollapsedHeader, message)
         collapsedView.setTextViewText(R.id.textViewCollapsedTitle, title)
 
-        val expandedView = cardView(context, card)
-        expandedView.setViewVisibility(R.id.answerGroup, View.VISIBLE)
-        expandedView.setViewVisibility(R.id.answerButtons, View.GONE)
+        val expandedView = cardView(context, card, revealed = true)
         expandedView.setViewVisibility(R.id.textViewNextCard, View.VISIBLE)
         expandedView.setViewVisibility(R.id.buttonShowAnswer, View.GONE)
 
@@ -197,8 +200,8 @@ class Notifications {
             .setSilent(!alert)
             .setOnlyAlertOnce(!alert)
         if (started) {
-            val expandedView = cardView(context, card)
-            expandedView.setViewVisibility(R.id.answerGroup, if (revealed) View.VISIBLE else View.GONE)
+            val expandedView = cardView(context, card, revealed)
+            expandedView.setViewVisibility(R.id.answerButtons, if (revealed) View.VISIBLE else View.GONE)
             expandedView.setViewVisibility(R.id.buttonShowAnswer, if (revealed) View.GONE else View.VISIBLE)
             expandedView.setOnClickPendingIntent(R.id.buttonShowAnswer, createIntent(context, ScheduledReview.ACTION_SHOW_ANSWER))
             setAnswerButtons(context, expandedView, card, ScheduledReview.ACTION_BUTTON_PREFIX)
@@ -224,11 +227,16 @@ class Notifications {
         }
     }
 
-    /** The expanded view with [card]'s question and answer; the caller chooses what is visible. */
-    private fun cardView(context: Context, card: CardInfo): RemoteViews {
+    /** The expanded view with [card]'s question and, if [revealed], its answer; the caller chooses the buttons. */
+    private fun cardView(context: Context, card: CardInfo, revealed: Boolean): RemoteViews {
         val view = RemoteViews(context.packageName, R.layout.notification_expanded_full)
         view.setTextViewText(R.id.textViewExpandedHeader, CardText.clean(card.q))
+        view.setInt(R.id.textViewExpandedHeader, "setMaxLines", if (revealed) MAX_LINES_QUESTION_WITH_ANSWER else MAX_LINES_QUESTION_ALONE)
         view.setTextViewText(R.id.textViewContent, CardText.clean(card.a))
+        view.setInt(R.id.textViewContent, "setMaxLines", MAX_LINES_ANSWER)
+        val answerVisibility = if (revealed) View.VISIBLE else View.GONE
+        view.setViewVisibility(R.id.answerDivider, answerVisibility)
+        view.setViewVisibility(R.id.textViewContent, answerVisibility)
         return view
     }
 
