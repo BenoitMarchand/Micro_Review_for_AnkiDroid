@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Home screen card widget (StandardCardWidget), over its background: due count and "Start review"; then deck, question and
      "Show answer"; once revealed, the answer and the answer buttons (only those the card has).
-     The texts share the free height and their size adapts to it; the buttons stay at the bottom. -->
+     The texts share the free height and their size adapts to it; a card too long for that scrolls in a list. The
+     buttons stay at the bottom. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@android:id/background"
     android:layout_width="match_parent"
@@ -67,6 +68,15 @@
             android:maxLines="8"
             android:paddingVertical="4dp"
             android:textColor="@color/primaryText"
+            android:visibility="gone" />
+
+        <!-- Instead of the texts, for a card too long for them. -->
+        <ListView
+            android:id="@+id/widgetScroll"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:divider="@null"
             android:visibility="gone" />
 
         <Button

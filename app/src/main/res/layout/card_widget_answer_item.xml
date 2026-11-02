@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The answer of a card too long for the widget, in its scrolling list (StandardCardWidget). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:id="@+id/widgetItemDivider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/notification_divider" />
+
+    <TextView
+        android:id="@+id/widgetItemText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingVertical="4dp"
+        android:textColor="@color/primaryText"
+        android:textSize="14sp" />
+</LinearLayout>
