@@ -10,6 +10,25 @@ import org.junit.Test
 class CardWidgetContentTest {
 
     @Test
+    fun aShortCardKeepsItsLargeText() {
+        assertFalse(CardWidgetContent.needsScroll(listOf(2), lineHeightPx = 20f, heightPx = 200f, density = 1f))
+        assertFalse(CardWidgetContent.needsScroll(listOf(1, 2), lineHeightPx = 20f, heightPx = 200f, density = 1f))
+    }
+
+    @Test
+    fun aTextTallerThanItsShareScrolls() {
+        // 200 - 86 - 16 = 98 for two texts: 49 each.
+        assertFalse(CardWidgetContent.needsScroll(listOf(2, 2), lineHeightPx = 20f, heightPx = 200f, density = 1f))
+        assertTrue(CardWidgetContent.needsScroll(listOf(3, 1), lineHeightPx = 20f, heightPx = 200f, density = 1f))
+    }
+
+    @Test
+    fun aTextOverTheLineLimitScrollsEvenInATallWidget() {
+        assertFalse(CardWidgetContent.needsScroll(listOf(8), lineHeightPx = 20f, heightPx = 2000f, density = 1f))
+        assertTrue(CardWidgetContent.needsScroll(listOf(9), lineHeightPx = 20f, heightPx = 2000f, density = 1f))
+    }
+
+    @Test
     fun notStarted_whateverTheRest() {
         assertEquals(Kind.NOT_STARTED, kind(started = false, hasCard = false, reviewing = true, answerRevealed = true))
     }
