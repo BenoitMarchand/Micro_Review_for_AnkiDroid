@@ -29,6 +29,7 @@ object ScheduledReview {
     const val ACTION_ALARM = "ACTION_SCHEDULED_ALARM"
     const val ACTION_START = "ACTION_SCHEDULED_START"
     const val ACTION_SHOW_ANSWER = "ACTION_SCHEDULED_SHOW_ANSWER"
+    const val ACTION_MORE = "ACTION_SCHEDULED_MORE"
 
     /** Followed by the button number, 1 to 4 ([AnswerButtons]). */
     const val ACTION_BUTTON_PREFIX = "ACTION_SCHEDULED_BUTTON_"
@@ -80,6 +81,14 @@ object ScheduledReview {
     fun revealAnswer(context: Context) {
         val state = startedCard(context) ?: return cancel(context)
         CardReview.revealAnswer(context)
+        post(context, state, alert = false)
+    }
+
+    /** More: the next page of a long card. */
+    fun showNextPage(context: Context) {
+        val state = startedCard(context) ?: return cancel(context)
+        val card = state.toCardInfo()
+        CardReview.moveToNextPage(context, card, CardReview.isAnswerRevealed(context, card))
         post(context, state, alert = false)
     }
 

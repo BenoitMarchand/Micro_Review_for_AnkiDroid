@@ -11,6 +11,7 @@ import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.TextView
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -572,6 +573,67 @@ class ReviewScenariosTest {
         assertFullyVisible(R.id.button3)
     }
 
+    @Test
+    fun longCard_isReadInFullWithMore_thenAnswered() {
+        val question = (1..150).joinToString(" ") { "question$it" }
+        val answer = (1..150).joinToString(" ") { "answer$it" }
+        anki.deck(1, "Spanish", FakeAnkiDataSource.Card(10, question = question, answer = answer))
+        select(1)
+        start()
+
+        assertEquals(question, readAllPages(R.id.textViewExpandedHeader, R.id.buttonShowAnswer))
+
+        press(Notifications.ACTION_SHOW_ANSWER)
+        waitUntil { expandedNotification().findViewById<View>(R.id.buttonShowAnswer).visibility == View.GONE }
+
+        // "Show answer" goes straight to the answer.
+        assertEquals("answer1", text(R.id.textViewContent).substringBefore(' '))
+        assertEquals(View.GONE, expandedNotification().findViewById<View>(R.id.textViewExpandedHeader).visibility)
+        assertEquals(answer, readAllPages(R.id.textViewContent, R.id.button3))
+
+        pressAnswer("ACTION_BUTTON_3")
+        waitUntil { anki.answers.isNotEmpty() }
+        assertEquals(listOf(FakeAnkiDataSource.Answer(10, 0, ease = 3)), anki.answers)
+    }
+
+    @Test
+    fun shortCard_hasNoMoreButton() {
+        anki.deck(1, "Spanish", FakeAnkiDataSource.Card(10, question = "Hola", answer = "Hello"))
+        select(1)
+        start()
+
+        assertEquals(View.GONE, expandedNotification().findViewById<View>(R.id.buttonMore).visibility)
+        assertEquals("Hola", text(R.id.textViewExpandedHeader))
+    }
+
+    /**
+     * Taps "More" through the pages from the current one, back to it, and returns the text of [textId] on the pages
+     * showing it, in reading order. On each page, the text fits and [buttonId] is fully visible.
+     */
+    private fun readAllPages(textId: Int, buttonId: Int): String {
+        val pages = mutableListOf<String>()
+        val first = moreLabel()
+        do {
+            val shown = moreLabel()
+            assertFullyVisible(buttonId)
+            val textView = expandedNotification().findViewById<TextView>(textId)
+            if (textView.visibility == View.VISIBLE) {
+                pages += textView.text.toString()
+                val room = textView.height - textView.totalPaddingTop - textView.totalPaddingBottom
+                assertTrue("$shown: ${textView.layout.height} px of text in $room px", textView.layout.height <= room)
+            }
+            // At a human pace: above 5 updates per second, Android drops notification updates.
+            SystemClock.sleep(300)
+            press(Notifications.ACTION_MORE)
+            waitUntil { moreLabel() != shown }
+        } while (moreLabel() != first)
+        return pages.joinToString(" ")
+    }
+
+    private fun moreLabel() = text(R.id.buttonMore)
+
+    private fun text(id: Int) = expandedNotification().findViewById<TextView>(id).text.toString()
+
     /** The expanded notification in the system's template, at the largest height Android gives it. */
     private fun expandedNotification(): ViewGroup {
         var notification: Notification? = null
@@ -585,7 +647,7 @@ class ReviewScenariosTest {
             val views = Notification.Builder.recoverBuilder(context, notification).createBigContentView()
             root = views.apply(context, FrameLayout(context)) as ViewGroup
             root.measure(
-                View.MeasureSpec.makeMeasureSpec((360 * density).toInt(), View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(context.resources.displayMetrics.widthPixels, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec((MAX_EXPANDED_NOTIFICATION_DP * density).toInt(), View.MeasureSpec.AT_MOST),
             )
             root.layout(0, 0, root.measuredWidth, root.measuredHeight)

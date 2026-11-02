@@ -6,7 +6,10 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.text.StaticLayout
+import android.text.TextPaint
 import android.util.Log
+import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
@@ -21,6 +24,7 @@ class Notifications {
         /** The scheduled reviews ([ScheduledReview]). */
         const val SCHEDULED_CHANNEL_ID = "scheduled_review"
         const val ACTION_SHOW_ANSWER = "ACTION_SHOW_ANSWER"
+        const val ACTION_MORE = "ACTION_MORE"
 
         /** The answer buttons: followed by the button number, 1 to 4 ([AnswerButtons]), with the card ([CardReview.forCard]). */
         const val ACTION_BUTTON_PREFIX = "ACTION_BUTTON_"
@@ -28,11 +32,47 @@ class Notifications {
         /** How long "Next card at your next unlock" stays before disappearing. */
         private const val NEXT_CARD_MESSAGE_TIMEOUT_MS = 5_000L
 
-        /** Lines of a long text, so the question and the answer both show: alone, the question gets more. */
-        private const val MAX_LINES_QUESTION_ALONE = 8
-        private const val MAX_LINES_QUESTION_WITH_ANSWER = 3
-        private const val MAX_LINES_ANSWER = 4
+        /** The height left for the card's text in the expanded view, whose maximum is 256 dp, and what it contains. */
+        private const val TEXT_ROOM_DP = 120f
+        private const val MORE_BUTTON_DP = 36f
+        private const val TEXT_PADDING_DP = 17f
+
+        /** What the system's template takes from the screen's width, at most, and a margin for the question's bolder font. */
+        private const val TEMPLATE_MARGINS_DP = 104f
+        private const val TEXT_WIDTH_MARGIN = 0.95f
         private const val LEGACY_CHANNEL_ID = "channel_id"
+
+        /** The pages of [card], its answer included if [revealed], at the current screen width and font size. */
+        fun cardPages(context: Context, card: CardInfo, revealed: Boolean): List<CardPages.Page> {
+            val density = context.resources.displayMetrics.density
+            val paint = TextPaint().apply {
+                textSize = maxOf(
+                    textSize(context, androidx.core.R.style.TextAppearance_Compat_Notification_Title),
+                    textSize(context, androidx.core.R.style.TextAppearance_Compat_Notification),
+                )
+            }
+            val width = ((context.resources.configuration.screenWidthDp - TEMPLATE_MARGINS_DP) * density * TEXT_WIDTH_MARGIN).toInt().coerceAtLeast(1)
+            fun layout(text: String) = StaticLayout.Builder.obtain(text, 0, text.length, paint, width).build()
+            val room = CardPages.Room(
+                height = TEXT_ROOM_DP * density,
+                moreButton = MORE_BUTTON_DP * density,
+                textPadding = TEXT_PADDING_DP * density,
+                lineHeight = layout("Ag").height.toFloat(),
+            )
+            return CardPages.pages(CardText.clean(card.q), if (revealed) CardText.clean(card.a) else null, room) { text ->
+                val laidOut = layout(text)
+                if (text.isEmpty()) emptyList() else (0 until laidOut.lineCount).map { laidOut.getLineEnd(it) }
+            }
+        }
+
+        private fun textSize(context: Context, style: Int): Float {
+            val attributes = context.obtainStyledAttributes(style, intArrayOf(android.R.attr.textSize))
+            try {
+                return attributes.getDimension(0, TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 14f, context.resources.displayMetrics))
+            } finally {
+                attributes.recycle()
+            }
+        }
 
         fun create(): Notifications = Notifications()
 
@@ -89,7 +129,7 @@ class Notifications {
             collapsedView.setTextViewText(R.id.textViewCollapsedHeader, CardText.clean(card.q))
             collapsedView.setTextViewText(R.id.textViewCollapsedTitle, title)
 
-            val expandedView = cardView(context, card, revealed)
+            val expandedView = cardView(context, card, revealed, ACTION_MORE)
             expandedView.setViewVisibility(R.id.answerButtons, if (revealed) View.VISIBLE else View.GONE)
             expandedView.setViewVisibility(R.id.buttonShowAnswer, if (revealed) View.GONE else View.VISIBLE)
             expandedView.setOnClickPendingIntent(R.id.buttonShowAnswer, createIntent(context, ACTION_SHOW_ANSWER))
@@ -153,7 +193,7 @@ class Notifications {
         collapsedView.setTextViewText(R.id.textViewCollapsedHeader, message)
         collapsedView.setTextViewText(R.id.textViewCollapsedTitle, title)
 
-        val expandedView = cardView(context, card, revealed = true)
+        val expandedView = cardView(context, card, revealed = true, moreAction = null)
         expandedView.setViewVisibility(R.id.textViewNextCard, View.VISIBLE)
         expandedView.setViewVisibility(R.id.buttonShowAnswer, View.GONE)
 
@@ -200,7 +240,7 @@ class Notifications {
             .setSilent(!alert)
             .setOnlyAlertOnce(!alert)
         if (started) {
-            val expandedView = cardView(context, card, revealed)
+            val expandedView = cardView(context, card, revealed, ScheduledReview.ACTION_MORE)
             expandedView.setViewVisibility(R.id.answerButtons, if (revealed) View.VISIBLE else View.GONE)
             expandedView.setViewVisibility(R.id.buttonShowAnswer, if (revealed) View.GONE else View.VISIBLE)
             expandedView.setOnClickPendingIntent(R.id.buttonShowAnswer, createIntent(context, ScheduledReview.ACTION_SHOW_ANSWER))
@@ -227,16 +267,26 @@ class Notifications {
         }
     }
 
-    /** The expanded view with [card]'s question and, if [revealed], its answer; the caller chooses the buttons. */
-    private fun cardView(context: Context, card: CardInfo, revealed: Boolean): RemoteViews {
+    /**
+     * The expanded view with the current page of [card] ([CardReview.currentPage]) and, for a card of several pages,
+     * a "More" button sending [moreAction] (none if null); the caller chooses the other buttons.
+     */
+    private fun cardView(context: Context, card: CardInfo, revealed: Boolean, moreAction: String?): RemoteViews {
         val view = RemoteViews(context.packageName, R.layout.notification_expanded_full)
-        view.setTextViewText(R.id.textViewExpandedHeader, CardText.clean(card.q))
-        view.setInt(R.id.textViewExpandedHeader, "setMaxLines", if (revealed) MAX_LINES_QUESTION_WITH_ANSWER else MAX_LINES_QUESTION_ALONE)
-        view.setTextViewText(R.id.textViewContent, CardText.clean(card.a))
-        view.setInt(R.id.textViewContent, "setMaxLines", MAX_LINES_ANSWER)
-        val answerVisibility = if (revealed) View.VISIBLE else View.GONE
-        view.setViewVisibility(R.id.answerDivider, answerVisibility)
-        view.setViewVisibility(R.id.textViewContent, answerVisibility)
+        val pages = cardPages(context, card, revealed)
+        val index = CardReview.currentPage(context, card, pages)
+        val page = pages[index]
+        view.setTextViewText(R.id.textViewExpandedHeader, page.question.orEmpty())
+        view.setViewVisibility(R.id.textViewExpandedHeader, if (page.question != null) View.VISIBLE else View.GONE)
+        view.setTextViewText(R.id.textViewContent, page.answer.orEmpty())
+        view.setViewVisibility(R.id.textViewContent, if (page.answer != null) View.VISIBLE else View.GONE)
+        view.setViewVisibility(R.id.answerDivider, if (page.question != null && page.answer != null) View.VISIBLE else View.GONE)
+        if (moreAction != null && pages.size > 1) {
+            val label = if (index == pages.lastIndex) R.string.card_page_restart else R.string.card_page_more
+            view.setTextViewText(R.id.buttonMore, context.getString(label, index + 1, pages.size))
+            view.setViewVisibility(R.id.buttonMore, View.VISIBLE)
+            view.setOnClickPendingIntent(R.id.buttonMore, createIntent(context, moreAction))
+        }
         return view
     }
 
