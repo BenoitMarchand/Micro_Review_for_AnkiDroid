@@ -7,6 +7,8 @@
     <string name="good">Good</string>
     <string name="easy">Easy</string>
     <string name="show_answer">Show answer</string>
+    <string name="card_page_more">More (%1$d/%2$d)</string>
+    <string name="card_page_restart">Back to start (%1$d/%2$d)</string>
     <string name="notification_title">Anki</string>
     <string name="notification_title_deck">Anki • %1$s</string>
     <string name="next_card_at_next_unlock">Next card at your next unlock</string>

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Question, then "Show answer"; once revealed: the answer and the answer buttons. After the session's answer,
      the message "Next card at your next unlock" replaces the buttons.
-     A notification has a maximum height and can't scroll: the texts have a weight, so they give up height when
-     it runs out, and the buttons always stay visible. -->
+     A notification has a maximum height and can't scroll: a long card is read in pages with "More" (CardPages).
+     If a page is still too tall, the texts have a weight, so they give up height and the buttons always stay visible. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/layoutExpanded"
     android:layout_width="match_parent"
@@ -17,7 +17,6 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:ellipsize="end"
         android:paddingVertical="8dp" />
 
     <FrameLayout
@@ -33,8 +32,14 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:ellipsize="end"
         android:paddingVertical="8dp"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/buttonMore"
+        style="@style/NotificationMoreButton"
+        android:background="@drawable/bg_pill_show_answer"
+        android:textColor="@color/show_answer_button_text"
         android:visibility="gone" />
 
     <LinearLayout
