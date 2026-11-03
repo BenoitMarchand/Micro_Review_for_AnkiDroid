@@ -5,8 +5,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CardPagesTest {
-    /** 8 lines without "More", 6 with it, for one text; 7 and 5 for two. */
-    private val room = CardPages.Room(height = 90f, moreButton = 20f, textPadding = 10f, lineHeight = 10f)
+    /** 8 lines without the page buttons, 6 with them, for one text; 7 and 5 for two. */
+    private val room = CardPages.Room(height = 90f, pageButtons = 20f, textPadding = 10f, lineHeight = 10f)
 
     /** One line per word. */
     private fun lineEnds(text: String): List<Int> {
@@ -72,7 +72,7 @@ class CardPagesTest {
 
     @Test
     fun aPageAlwaysHoldsAtLeastOneLine() {
-        val tiny = CardPages.Room(height = 10f, moreButton = 20f, textPadding = 10f, lineHeight = 10f)
+        val tiny = CardPages.Room(height = 10f, pageButtons = 20f, textPadding = 10f, lineHeight = 10f)
 
         assertEquals(3, CardPages.pages(words(3), null, tiny, ::lineEnds).size)
     }

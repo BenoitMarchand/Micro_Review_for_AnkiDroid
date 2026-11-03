@@ -29,7 +29,8 @@ object ScheduledReview {
     const val ACTION_ALARM = "ACTION_SCHEDULED_ALARM"
     const val ACTION_START = "ACTION_SCHEDULED_START"
     const val ACTION_SHOW_ANSWER = "ACTION_SCHEDULED_SHOW_ANSWER"
-    const val ACTION_MORE = "ACTION_SCHEDULED_MORE"
+    const val ACTION_PREVIOUS_PAGE = "ACTION_SCHEDULED_PREVIOUS_PAGE"
+    const val ACTION_NEXT_PAGE = "ACTION_SCHEDULED_NEXT_PAGE"
 
     /** Followed by the button number, 1 to 4 ([AnswerButtons]). */
     const val ACTION_BUTTON_PREFIX = "ACTION_SCHEDULED_BUTTON_"
@@ -84,13 +85,17 @@ object ScheduledReview {
         post(context, state, alert = false)
     }
 
-    /** More: the next page of a long card. */
-    fun showNextPage(context: Context) {
+    /** Previous ([step] -1) or Next (1): another page of a long card. */
+    fun showPage(context: Context, step: Int) {
         val state = startedCard(context) ?: return cancel(context)
         val card = state.toCardInfo()
-        CardReview.moveToNextPage(context, card, CardReview.isAnswerRevealed(context, card))
+        CardReview.moveToPage(context, card, CardReview.isAnswerRevealed(context, card), step)
         post(context, state, alert = false)
     }
+
+    fun showPreviousPage(context: Context) = showPage(context, -1)
+
+    fun showNextPage(context: Context) = showPage(context, 1)
 
     /** An answer button for [card]: reviews it like the lock screen notification, then removes this notification. */
     fun answer(context: Context, button: Int, card: CardSync.CardKey) {

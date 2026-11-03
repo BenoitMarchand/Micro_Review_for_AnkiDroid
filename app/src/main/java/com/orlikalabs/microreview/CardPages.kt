@@ -1,21 +1,21 @@
 package com.orlikalabs.microreview
 
 /**
- * Splits a card too long for the notification, which can't scroll, into pages read with "More". Kept free of
- * Android classes so it can be unit tested: the laid out lines of a text come from [lineEnds].
+ * Splits a card too long for the notification, which can't scroll, into pages read with "Previous" and "Next". Kept
+ * free of Android classes so it can be unit tested: the laid out lines of a text come from [lineEnds].
  */
 object CardPages {
     /** What one page shows; a null text is hidden. */
     data class Page(val question: String?, val answer: String?)
 
     /**
-     * The height available for the text, in any unit: [height] without the "More" button, which takes [moreButton];
-     * each text also takes [textPadding] and a line takes [lineHeight].
+     * The height available for the text, in any unit: [height] without the "Previous" and "Next" buttons, which take
+     * [pageButtons]; each text also takes [textPadding] and a line takes [lineHeight].
      */
-    data class Room(val height: Float, val moreButton: Float, val textPadding: Float, val lineHeight: Float) {
+    data class Room(val height: Float, val pageButtons: Float, val textPadding: Float, val lineHeight: Float) {
         /** How many lines fit with [texts] texts on the page (at least 1, so that a page always advances). */
         fun lines(texts: Int, more: Boolean): Int =
-            (((height - (if (more) moreButton else 0f) - texts * textPadding) / lineHeight).toInt()).coerceAtLeast(1)
+            (((height - (if (more) pageButtons else 0f) - texts * textPadding) / lineHeight).toInt()).coerceAtLeast(1)
     }
 
     /**

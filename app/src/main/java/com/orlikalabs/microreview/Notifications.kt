@@ -24,7 +24,8 @@ class Notifications {
         /** The scheduled reviews ([ScheduledReview]). */
         const val SCHEDULED_CHANNEL_ID = "scheduled_review"
         const val ACTION_SHOW_ANSWER = "ACTION_SHOW_ANSWER"
-        const val ACTION_MORE = "ACTION_MORE"
+        const val ACTION_PREVIOUS_PAGE = "ACTION_PREVIOUS_PAGE"
+        const val ACTION_NEXT_PAGE = "ACTION_NEXT_PAGE"
 
         /** The answer buttons: followed by the button number, 1 to 4 ([AnswerButtons]), with the card ([CardReview.forCard]). */
         const val ACTION_BUTTON_PREFIX = "ACTION_BUTTON_"
@@ -34,11 +35,18 @@ class Notifications {
 
         /** The height left for the card's text in the expanded view, whose maximum is 256 dp, and what it contains. */
         private const val TEXT_ROOM_DP = 120f
-        private const val MORE_BUTTON_DP = 36f
+        private const val PAGE_BUTTONS_DP = 36f
         private const val TEXT_PADDING_DP = 17f
 
         /** What the system's template takes from the screen's width, at most, and a margin for the question's bolder font. */
         private const val TEMPLATE_MARGINS_DP = 104f
+
+        /**
+         * The widest the notifications get, margins included: on a tablet (or a phone in landscape) they are in a
+         * narrower panel than the screen (543 dp on a 753 dp wide Honor tablet), whose width SystemUI doesn't reliably
+         * expose (Honor's `notification_panel_width` says "full width").
+         */
+        private const val MAX_PANEL_WIDTH_DP = 560
         private const val TEXT_WIDTH_MARGIN = 0.95f
         private const val LEGACY_CHANNEL_ID = "channel_id"
 
@@ -51,11 +59,12 @@ class Notifications {
                     textSize(context, androidx.core.R.style.TextAppearance_Compat_Notification),
                 )
             }
-            val width = ((context.resources.configuration.screenWidthDp - TEMPLATE_MARGINS_DP) * density * TEXT_WIDTH_MARGIN).toInt().coerceAtLeast(1)
+            val panelWidthDp = minOf(context.resources.configuration.screenWidthDp, MAX_PANEL_WIDTH_DP)
+            val width = ((panelWidthDp - TEMPLATE_MARGINS_DP) * density * TEXT_WIDTH_MARGIN).toInt().coerceAtLeast(1)
             fun layout(text: String) = StaticLayout.Builder.obtain(text, 0, text.length, paint, width).build()
             val room = CardPages.Room(
                 height = TEXT_ROOM_DP * density,
-                moreButton = MORE_BUTTON_DP * density,
+                pageButtons = PAGE_BUTTONS_DP * density,
                 textPadding = TEXT_PADDING_DP * density,
                 lineHeight = layout("Ag").height.toFloat(),
             )
@@ -129,7 +138,7 @@ class Notifications {
             collapsedView.setTextViewText(R.id.textViewCollapsedHeader, CardText.clean(card.q))
             collapsedView.setTextViewText(R.id.textViewCollapsedTitle, title)
 
-            val expandedView = cardView(context, card, revealed, ACTION_MORE)
+            val expandedView = cardView(context, card, revealed, PageActions(ACTION_PREVIOUS_PAGE, ACTION_NEXT_PAGE))
             expandedView.setViewVisibility(R.id.answerButtons, if (revealed) View.VISIBLE else View.GONE)
             expandedView.setViewVisibility(R.id.buttonShowAnswer, if (revealed) View.GONE else View.VISIBLE)
             expandedView.setOnClickPendingIntent(R.id.buttonShowAnswer, createIntent(context, ACTION_SHOW_ANSWER))
@@ -193,7 +202,7 @@ class Notifications {
         collapsedView.setTextViewText(R.id.textViewCollapsedHeader, message)
         collapsedView.setTextViewText(R.id.textViewCollapsedTitle, title)
 
-        val expandedView = cardView(context, card, revealed = true, moreAction = null)
+        val expandedView = cardView(context, card, revealed = true, pageActions = null)
         expandedView.setViewVisibility(R.id.textViewNextCard, View.VISIBLE)
         expandedView.setViewVisibility(R.id.buttonShowAnswer, View.GONE)
 
@@ -240,7 +249,7 @@ class Notifications {
             .setSilent(!alert)
             .setOnlyAlertOnce(!alert)
         if (started) {
-            val expandedView = cardView(context, card, revealed, ScheduledReview.ACTION_MORE)
+            val expandedView = cardView(context, card, revealed, PageActions(ScheduledReview.ACTION_PREVIOUS_PAGE, ScheduledReview.ACTION_NEXT_PAGE))
             expandedView.setViewVisibility(R.id.answerButtons, if (revealed) View.VISIBLE else View.GONE)
             expandedView.setViewVisibility(R.id.buttonShowAnswer, if (revealed) View.GONE else View.VISIBLE)
             expandedView.setOnClickPendingIntent(R.id.buttonShowAnswer, createIntent(context, ScheduledReview.ACTION_SHOW_ANSWER))
@@ -267,11 +276,14 @@ class Notifications {
         }
     }
 
+    /** The broadcasts of the "Previous" and "Next" buttons. */
+    private class PageActions(val previous: String, val next: String)
+
     /**
      * The expanded view with the current page of [card] ([CardReview.currentPage]) and, for a card of several pages,
-     * a "More" button sending [moreAction] (none if null); the caller chooses the other buttons.
+     * "Previous" and "Next" sending [pageActions] (none if null); the caller chooses the other buttons.
      */
-    private fun cardView(context: Context, card: CardInfo, revealed: Boolean, moreAction: String?): RemoteViews {
+    private fun cardView(context: Context, card: CardInfo, revealed: Boolean, pageActions: PageActions?): RemoteViews {
         val view = RemoteViews(context.packageName, R.layout.notification_expanded_full)
         val pages = cardPages(context, card, revealed)
         val index = CardReview.currentPage(context, card, pages)
@@ -281,11 +293,13 @@ class Notifications {
         view.setTextViewText(R.id.textViewContent, page.answer.orEmpty())
         view.setViewVisibility(R.id.textViewContent, if (page.answer != null) View.VISIBLE else View.GONE)
         view.setViewVisibility(R.id.answerDivider, if (page.question != null && page.answer != null) View.VISIBLE else View.GONE)
-        if (moreAction != null && pages.size > 1) {
-            val label = if (index == pages.lastIndex) R.string.card_page_restart else R.string.card_page_more
-            view.setTextViewText(R.id.buttonMore, context.getString(label, index + 1, pages.size))
-            view.setViewVisibility(R.id.buttonMore, View.VISIBLE)
-            view.setOnClickPendingIntent(R.id.buttonMore, createIntent(context, moreAction))
+        if (pageActions != null && pages.size > 1) {
+            view.setViewVisibility(R.id.pageButtons, View.VISIBLE)
+            view.setTextViewText(R.id.textViewPage, context.getString(R.string.card_page_count, index + 1, pages.size))
+            view.setViewVisibility(R.id.buttonPreviousPage, if (index > 0) View.VISIBLE else View.INVISIBLE)
+            view.setViewVisibility(R.id.buttonNextPage, if (index < pages.lastIndex) View.VISIBLE else View.INVISIBLE)
+            view.setOnClickPendingIntent(R.id.buttonPreviousPage, createIntent(context, pageActions.previous))
+            view.setOnClickPendingIntent(R.id.buttonNextPage, createIntent(context, pageActions.next))
         }
         return view
     }

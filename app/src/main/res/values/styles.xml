@@ -15,10 +15,8 @@
         <item name="android:maxLines">1</item>
     </style>
 
-    <!-- "More" in the review notification: slim, since it takes height from a long card. -->
-    <style name="NotificationMoreButton" parent="NotificationAnswerButton">
-        <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_weight">0</item>
+    <!-- "Previous" and "Next" in the review notification: slim, since they take height from a long card. -->
+    <style name="NotificationPageButton" parent="NotificationAnswerButton">
         <item name="android:layout_height">32dp</item>
         <item name="android:layout_margin">2dp</item>
     </style>
