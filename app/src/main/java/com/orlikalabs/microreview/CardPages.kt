@@ -5,8 +5,12 @@ package com.orlikalabs.microreview
  * free of Android classes so it can be unit tested: the laid out lines of a text come from [lineEnds].
  */
 object CardPages {
-    /** What one page shows; a null text is hidden. */
-    data class Page(val question: String?, val answer: String?)
+    /**
+     * What one page shows; a null text is hidden. On a card of several pages, each text takes at least
+     * [questionLines] or [answerLines] lines (0: its own height): all the pages have the same height, so the buttons
+     * below don't move, even when a text takes fewer lines than measured or the last page is short.
+     */
+    data class Page(val question: String?, val answer: String?, val questionLines: Int = 0, val answerLines: Int = 0)
 
     /**
      * The height available for the text, in any unit: [height] without the "Previous" and "Next" buttons, which take
@@ -29,17 +33,19 @@ object CardPages {
         val questionEnds = lineEnds(question)
         if (answer == null) {
             if (questionEnds.size <= room.lines(1, more = false)) return listOf(Page(question, null))
-            return split(question, questionEnds, room.lines(1, more = true)).map { Page(it, null) }
+            val lines = room.lines(1, more = true)
+            return split(question, questionEnds, lines).map { Page(it, null, questionLines = lines) }
         }
         val answerEnds = lineEnds(answer)
         if (questionEnds.size + answerEnds.size <= room.lines(2, more = false)) return listOf(Page(question, answer))
         val sharedLines = room.lines(2, more = true)
         if (questionEnds.size <= sharedLines / 3) {
-            return split(answer, answerEnds, sharedLines - questionEnds.size).map { Page(question, it) }
+            val answerLines = sharedLines - questionEnds.size
+            return split(answer, answerEnds, answerLines).map { Page(question, it, questionEnds.size.coerceAtLeast(1), answerLines) }
         }
         val lines = room.lines(1, more = true)
-        return split(question, questionEnds, lines).map { Page(it, null) } +
-            split(answer, answerEnds, lines).map { Page(null, it) }
+        return split(question, questionEnds, lines).map { Page(it, null, questionLines = lines) } +
+            split(answer, answerEnds, lines).map { Page(null, it, answerLines = lines) }
     }
 
     /** The page to start on: the answer's first one, when it was just asked for with "Show answer". */

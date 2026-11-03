@@ -289,8 +289,10 @@ class Notifications {
         val index = CardReview.currentPage(context, card, pages)
         val page = pages[index]
         view.setTextViewText(R.id.textViewExpandedHeader, page.question.orEmpty())
+        view.setInt(R.id.textViewExpandedHeader, "setMinLines", page.questionLines)
         view.setViewVisibility(R.id.textViewExpandedHeader, if (page.question != null) View.VISIBLE else View.GONE)
         view.setTextViewText(R.id.textViewContent, page.answer.orEmpty())
+        view.setInt(R.id.textViewContent, "setMinLines", page.answerLines)
         view.setViewVisibility(R.id.textViewContent, if (page.answer != null) View.VISIBLE else View.GONE)
         view.setViewVisibility(R.id.answerDivider, if (page.question != null && page.answer != null) View.VISIBLE else View.GONE)
         if (pageActions != null && pages.size > 1) {

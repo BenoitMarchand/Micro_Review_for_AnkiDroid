@@ -64,6 +64,23 @@ class CardPagesTest {
     }
 
     @Test
+    fun allThePagesOfACardHaveTheSameHeight() {
+        // The lines a page takes: each text at least its minimum.
+        fun height(page: CardPages.Page) =
+            maxOf(page.question?.let { lineEnds(it).size } ?: 0, page.questionLines) +
+                maxOf(page.answer?.let { lineEnds(it).size } ?: 0, page.answerLines)
+
+        assertEquals(listOf(6, 6, 6, 6), pages(words(20), null).map(::height))
+        // The last page has 1 line of the answer.
+        assertEquals(listOf(5, 5, 5, 5), pages("q", words(13)).map(::height))
+        assertEquals(setOf(6), pages(words(10, "q"), words(9, "a")).map(::height).toSet())
+        // Each text keeps its minimum even if it takes fewer lines than measured.
+        assertTrue(pages(words(20), null).all { it.questionLines == 6 && it.answerLines == 0 })
+        // A card on one page keeps its own height.
+        assertEquals(CardPages.Page("q", "a"), pages("q", "a").single())
+    }
+
+    @Test
     fun firstAnswerPageSkipsTheQuestionPages() {
         assertEquals(2, CardPages.firstAnswerPage(pages(words(10, "q"), words(10, "a"))))
         assertEquals(0, CardPages.firstAnswerPage(pages("q", "a")))
