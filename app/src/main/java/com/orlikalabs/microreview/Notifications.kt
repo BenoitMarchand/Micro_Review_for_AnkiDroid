@@ -38,6 +38,9 @@ class Notifications {
         private const val PAGE_BUTTONS_DP = 36f
         private const val TEXT_PADDING_DP = 17f
 
+        /** The texts' padding in the layout (`paddingVertical`, 8 dp). */
+        private const val TEXT_VERTICAL_PADDING_DP = 16f
+
         /** What the system's template takes from the screen's width, at most, and a margin for the question's bolder font. */
         private const val TEMPLATE_MARGINS_DP = 104f
 
@@ -53,12 +56,7 @@ class Notifications {
         /** The pages of [card], its answer included if [revealed], at the current screen width and font size. */
         fun cardPages(context: Context, card: CardInfo, revealed: Boolean): List<CardPages.Page> {
             val density = context.resources.displayMetrics.density
-            val paint = TextPaint().apply {
-                textSize = maxOf(
-                    textSize(context, androidx.core.R.style.TextAppearance_Compat_Notification_Title),
-                    textSize(context, androidx.core.R.style.TextAppearance_Compat_Notification),
-                )
-            }
+            val paint = textPaint(context)
             val panelWidthDp = minOf(context.resources.configuration.screenWidthDp, MAX_PANEL_WIDTH_DP)
             val width = ((panelWidthDp - TEMPLATE_MARGINS_DP) * density * TEXT_WIDTH_MARGIN).toInt().coerceAtLeast(1)
             fun layout(text: String) = StaticLayout.Builder.obtain(text, 0, text.length, paint, width).build()
@@ -66,12 +64,32 @@ class Notifications {
                 height = TEXT_ROOM_DP * density,
                 pageButtons = PAGE_BUTTONS_DP * density,
                 textPadding = TEXT_PADDING_DP * density,
-                lineHeight = layout("Ag").height.toFloat(),
+                lineHeight = lineHeight(paint),
             )
             return CardPages.pages(CardText.clean(card.q), if (revealed) CardText.clean(card.a) else null, room) { text ->
                 val laidOut = layout(text)
                 if (text.isEmpty()) emptyList() else (0 until laidOut.lineCount).map { laidOut.getLineEnd(it) }
             }
+        }
+
+        /** The text of the measures: the larger of the question's and the answer's font size. */
+        private fun textPaint(context: Context) = TextPaint().apply {
+            textSize = maxOf(
+                textSize(context, androidx.core.R.style.TextAppearance_Compat_Notification_Title),
+                textSize(context, androidx.core.R.style.TextAppearance_Compat_Notification),
+            )
+        }
+
+        private fun lineHeight(paint: TextPaint) = StaticLayout.Builder.obtain("Ag", 0, 2, paint, Int.MAX_VALUE).build().height.toFloat()
+
+        /**
+         * The height in pixels of a text of [lines] measured lines, with its padding; 0 for none. In pixels, not lines:
+         * the question's and the answer's fonts have slightly different line heights.
+         */
+        private fun textHeight(context: Context, lines: Int): Int {
+            if (lines == 0) return 0
+            val density = context.resources.displayMetrics.density
+            return kotlin.math.ceil(lines * lineHeight(textPaint(context)) + TEXT_VERTICAL_PADDING_DP * density).toInt()
         }
 
         private fun textSize(context: Context, style: Int): Float {
@@ -289,10 +307,10 @@ class Notifications {
         val index = CardReview.currentPage(context, card, pages)
         val page = pages[index]
         view.setTextViewText(R.id.textViewExpandedHeader, page.question.orEmpty())
-        view.setInt(R.id.textViewExpandedHeader, "setMinLines", page.questionLines)
+        view.setInt(R.id.textViewExpandedHeader, "setMinHeight", textHeight(context, page.questionLines))
         view.setViewVisibility(R.id.textViewExpandedHeader, if (page.question != null) View.VISIBLE else View.GONE)
         view.setTextViewText(R.id.textViewContent, page.answer.orEmpty())
-        view.setInt(R.id.textViewContent, "setMinLines", page.answerLines)
+        view.setInt(R.id.textViewContent, "setMinHeight", textHeight(context, page.answerLines))
         view.setViewVisibility(R.id.textViewContent, if (page.answer != null) View.VISIBLE else View.GONE)
         view.setViewVisibility(R.id.answerDivider, if (page.question != null && page.answer != null) View.VISIBLE else View.GONE)
         if (pageActions != null && pages.size > 1) {
