@@ -185,7 +185,8 @@ private fun ReadyContent(
     }
     val decksById = decks.associateBy { it.id }
     val selectedDecks = selectedDeckIds.mapNotNull { decksById[it] }
-    val tree = remember(decks) { buildDeckTree(decks) }
+    // Keyed on a copy: the activity refills the same list at each refresh, so the list itself never changes.
+    val tree = remember(decks.toList()) { buildDeckTree(decks) }
     // Full names of the unfolded decks. Everything starts folded, like AnkiDroid's deck list.
     var expanded by rememberSaveable { mutableStateOf(emptySet<String>()) }
     val visibleNodes = flattenVisible(tree, expanded)

@@ -7,6 +7,8 @@ Internal changes (tests, build, documentation) don't go here: the GitHub release
 
 ## Unreleased
 
+- Decks added in AnkiDroid, and their due counts, now show up when you come back to the app, without restarting it.
+
 ## 0.5.0 (2026-11-03)
 
 - Long cards: read them page by page with Previous / Next in the notification. The answer buttons always stay visible.
