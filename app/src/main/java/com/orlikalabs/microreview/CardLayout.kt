@@ -5,11 +5,14 @@ package com.orlikalabs.microreview
  * Sizes are in pixels.
  */
 object CardLayout {
-    /** Top of the text area, as a fraction of the screen height: below the lock screen clock. */
-    const val AREA_TOP = 0.30f
+    /**
+     * Top of the text area, as a fraction of the screen height: below the notifications, which the system draws right
+     * under the clock (measured on Android 13 and 14: the clock down to 21 %, then a stack down to 55 % with three rows).
+     */
+    const val AREA_TOP = 0.56f
 
-    /** Bottom of the text area: above the notifications and the bottom shortcuts. */
-    const val AREA_BOTTOM = 0.68f
+    /** Bottom of the text area: above the bottom shortcuts and the unlock icon (from 82 %). */
+    const val AREA_BOTTOM = 0.82f
 
     const val HORIZONTAL_MARGIN_DP = 32f
     const val MAX_TEXT_SIZE_DP = 40f
