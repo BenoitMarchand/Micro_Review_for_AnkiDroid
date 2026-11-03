@@ -582,6 +582,8 @@ class ReviewScenariosTest {
         start()
 
         assertEquals(question, readAllPages(R.id.textViewExpandedHeader, R.id.buttonShowAnswer))
+        // Back on the first page: no "Previous".
+        assertEquals(View.INVISIBLE, expandedNotification().findViewById<View>(R.id.buttonPreviousPage).visibility)
 
         press(Notifications.ACTION_SHOW_ANSWER)
         waitUntil { expandedNotification().findViewById<View>(R.id.buttonShowAnswer).visibility == View.GONE }
@@ -602,19 +604,19 @@ class ReviewScenariosTest {
         select(1)
         start()
 
-        assertEquals(View.GONE, expandedNotification().findViewById<View>(R.id.buttonMore).visibility)
+        assertEquals(View.GONE, expandedNotification().findViewById<View>(R.id.pageButtons).visibility)
         assertEquals("Hola", text(R.id.textViewExpandedHeader))
     }
 
     /**
-     * Taps "More" through the pages from the current one, back to it, and returns the text of [textId] on the pages
-     * showing it, in reading order. On each page, the text fits and [buttonId] is fully visible.
+     * Taps "Next" from the current page to the last one, then "Previous" back to it, and returns the text of [textId]
+     * on the pages showing it, in reading order. On each page, the text fits and [buttonId] is fully visible.
      */
     private fun readAllPages(textId: Int, buttonId: Int): String {
         val pages = mutableListOf<String>()
-        val first = moreLabel()
-        do {
-            val shown = moreLabel()
+        val first = pageLabel()
+        while (true) {
+            val shown = pageLabel()
             assertFullyVisible(buttonId)
             val textView = expandedNotification().findViewById<TextView>(textId)
             if (textView.visibility == View.VISIBLE) {
@@ -622,15 +624,25 @@ class ReviewScenariosTest {
                 val room = textView.height - textView.totalPaddingTop - textView.totalPaddingBottom
                 assertTrue("$shown: ${textView.layout.height} px of text in $room px", textView.layout.height <= room)
             }
-            // At a human pace: above 5 updates per second, Android drops notification updates.
-            SystemClock.sleep(300)
-            press(Notifications.ACTION_MORE)
-            waitUntil { moreLabel() != shown }
-        } while (moreLabel() != first)
+            if (!isVisible(R.id.buttonNextPage)) break
+            turnPage(Notifications.ACTION_NEXT_PAGE)
+        }
+        assertTrue("several pages", isVisible(R.id.buttonPreviousPage))
+        while (pageLabel() != first) turnPage(Notifications.ACTION_PREVIOUS_PAGE)
         return pages.joinToString(" ")
     }
 
-    private fun moreLabel() = text(R.id.buttonMore)
+    private fun turnPage(action: String) {
+        val shown = pageLabel()
+        // At a human pace: above 5 updates per second, Android drops notification updates.
+        SystemClock.sleep(300)
+        press(action)
+        waitUntil { pageLabel() != shown }
+    }
+
+    private fun isVisible(id: Int) = expandedNotification().findViewById<View>(id).visibility == View.VISIBLE
+
+    private fun pageLabel() = text(R.id.textViewPage)
 
     private fun text(id: Int) = expandedNotification().findViewById<TextView>(id).text.toString()
 

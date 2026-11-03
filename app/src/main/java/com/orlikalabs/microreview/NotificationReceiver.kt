@@ -7,7 +7,7 @@ import android.util.Log
 import kotlin.concurrent.thread
 
 /**
- * Handles the notification buttons ("Show answer", "More" and the answer buttons, of the lock screen notification and of
+ * Handles the notification buttons ("Show answer", "Previous", "Next" and the answer buttons, of the lock screen notification and of
  * the scheduled review) and the scheduled review alarm.
  */
 class NotificationReceiver : BroadcastReceiver() {
@@ -18,11 +18,13 @@ class NotificationReceiver : BroadcastReceiver() {
         val action = intent?.action ?: return
         val task: (Context) -> Unit = when (action) {
             Notifications.ACTION_SHOW_ANSWER -> CardReview::revealAnswer
-            Notifications.ACTION_MORE -> CardReview::showNextPage
+            Notifications.ACTION_PREVIOUS_PAGE -> CardReview::showPreviousPage
+            Notifications.ACTION_NEXT_PAGE -> CardReview::showNextPage
             ScheduledReview.ACTION_ALARM -> ScheduledReview::onAlarm
             ScheduledReview.ACTION_START -> ScheduledReview::start
             ScheduledReview.ACTION_SHOW_ANSWER -> ScheduledReview::revealAnswer
-            ScheduledReview.ACTION_MORE -> ScheduledReview::showNextPage
+            ScheduledReview.ACTION_PREVIOUS_PAGE -> ScheduledReview::showPreviousPage
+            ScheduledReview.ACTION_NEXT_PAGE -> ScheduledReview::showNextPage
             else -> answerTask(action, intent) ?: return
         }
 
