@@ -622,8 +622,7 @@ class ReviewScenariosTest {
             buttonTops += top(buttonId)
             val textView = expandedNotification().findViewById<TextView>(textId)
             if (textView.visibility == View.VISIBLE) {
-                // Without the blank lines that give a short page the height of the others.
-                pages += textView.text.toString().trimEnd('\n')
+                pages += textView.text.toString()
                 val room = textView.height - textView.totalPaddingTop - textView.totalPaddingBottom
                 assertTrue("$shown: ${textView.layout.height} px of text in $room px", textView.layout.height <= room)
             }
