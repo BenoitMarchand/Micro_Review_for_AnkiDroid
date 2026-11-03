@@ -58,7 +58,7 @@ class StoreAssetsSetup {
         }
 
         DeckSelection.save(context, listOf(deckId))
-        CardStateController.showNextCard(context, silent = true, notifyIfNone = false)
+        CardStateController.showNextCard(context, silent = true)
         flush()
         Log.i(LOG_TAG, "demo deck $deckId reset with ${CARDS.size} cards")
     }
@@ -69,7 +69,7 @@ class StoreAssetsSetup {
      */
     @Test
     fun prepareScenarios() {
-        ReviewSettings.setSeveralInARow(context, false)
+        ReviewSettings.setCardsPerUnlock(context, 1)
         ReviewSettings.setRotateOnUnlock(context, false)
         ReviewSettings.setReviewMode(context, ReviewSettings.ReviewMode.NOTIFICATION)
         ScheduledReviewSettings.setEnabled(context, false)

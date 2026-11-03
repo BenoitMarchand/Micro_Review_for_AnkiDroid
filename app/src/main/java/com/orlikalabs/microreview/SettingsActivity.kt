@@ -95,6 +95,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -183,7 +184,6 @@ private fun SettingsScreen(
     // The lock session (one card per unlock, rotation, open after unlock) needs the live wallpaper's screen events.
     val wallpaperActive = lockScreenMode == LockScreenState.Mode.LIVE
     val liveLockOnly = remember { WallpaperSetup.liveLockOnly(context) }
-    var severalInARow by remember { mutableStateOf(ReviewSettings.severalInARow(context)) }
     var rotateOnUnlock by remember { mutableStateOf(ReviewSettings.rotateOnUnlock(context)) }
     var reviewMode by remember { mutableStateOf(ReviewSettings.reviewMode(context)) }
     var styles by remember { mutableStateOf(WallpaperStyle.Target.entries.associateWith { WallpaperStyle.load(context, it) }) }
@@ -242,26 +242,7 @@ private fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             SettingsGroup(Icons.Filled.Refresh, stringResource(R.string.settings_behavior)) {
-                Column {
-                    SwitchRow(
-                        title = stringResource(R.string.several_in_a_row),
-                        summary = stringResource(if (severalInARow) R.string.several_in_a_row_on else R.string.several_in_a_row_off),
-                        checked = severalInARow,
-                        onChange = {
-                            ReviewSettings.setSeveralInARow(context, it)
-                            severalInARow = it
-                        },
-                    )
-                    // One card per unlock needs the live wallpaper's lock and unlock events (not the card picture).
-                    if (!severalInARow && !wallpaperActive) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            stringResource(R.string.several_in_a_row_needs_wallpaper),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-                }
+                CardsPerUnlock(wallpaperActive)
                 Column {
                     SwitchRow(
                         title = stringResource(R.string.rotate_on_unlock),
@@ -688,6 +669,44 @@ private fun homeWallpaperColors(context: android.content.Context): List<Color>? 
     val colors = WallpaperManager.getInstance(context).getWallpaperColors(WallpaperManager.FLAG_SYSTEM) ?: return null
     val main = listOfNotNull(colors.primaryColor, colors.secondaryColor, colors.tertiaryColor).map { Color(it.toArgb()) }
     return if (main.size >= 2) main else main.firstOrNull()?.let { listOf(it, it) }
+}
+
+/** "Cards per unlock": a slider from 1 to the maximum, with "no limit" as its last position. */
+@Composable
+private fun CardsPerUnlock(wallpaperActive: Boolean) {
+    val context = LocalContext.current
+    val noLimitPosition = ReviewSettings.MAX_CARDS_PER_UNLOCK + 1
+    var cards by remember { mutableIntStateOf(ReviewSettings.cardsPerUnlock(context)) }
+    val limited = cards != ReviewSettings.NO_LIMIT
+    Column {
+        Text(stringResource(R.string.cards_per_unlock), style = MaterialTheme.typography.bodyLarge)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            if (limited) {
+                pluralStringResource(R.plurals.cards_per_unlock_limit, cards, cards)
+            } else {
+                stringResource(R.string.cards_per_unlock_no_limit)
+            },
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Slider(
+            value = (if (limited) cards else noLimitPosition).toFloat(),
+            onValueChange = { position ->
+                cards = position.roundToInt().takeIf { it != noLimitPosition } ?: ReviewSettings.NO_LIMIT
+            },
+            onValueChangeFinished = { ReviewSettings.setCardsPerUnlock(context, cards) },
+            valueRange = 1f..noLimitPosition.toFloat(),
+            steps = noLimitPosition - 2,
+        )
+        // The limit needs the live wallpaper's lock and unlock events (not the card picture).
+        if (limited && !wallpaperActive) {
+            Text(
+                stringResource(R.string.cards_per_unlock_needs_wallpaper),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
 }
 
 /** Number of due cards "Change the card at every unlock" rotates through, with a warning above 20. */

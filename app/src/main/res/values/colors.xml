@@ -26,4 +26,7 @@
     <color name="show_answer_button_bg">#FFD3E3FD</color>
     <color name="show_answer_button_text">#FF041E49</color>
     <color name="notification_divider">#1F000000</color>
+    <!-- "Previous" and "Next": gray, see-through so they suit any notification background. -->
+    <color name="page_button_bg">#0F000000</color>
+    <color name="page_button_text">#FF5F6368</color>
 </resources>

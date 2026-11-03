@@ -5,12 +5,18 @@ import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Rect
 import android.os.Build
 import android.os.SystemClock
+import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.TextView
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -159,6 +165,29 @@ class ReviewScenariosTest {
 
         assertEquals(listOf(FakeAnkiDataSource.Answer(10, 0, ease = 3)), anki.answers)
         assertEquals("Anki • Spanish", notificationTitle())
+    }
+
+    @Test
+    fun answeringTheLastCard_removesTheNotification_insteadOfBravo() {
+        anki.deck(1, "Spanish", FakeAnkiDataSource.Card(10, question = "Hola"))
+        select(1)
+        start()
+        assertEquals("Anki • Spanish", notificationTitle())
+
+        pressAnswer("ACTION_BUTTON_3")
+        waitUntil {
+            anki.answers.isNotEmpty() && !storedState().hasCard() &&
+                notificationManager().activeNotifications.none { it.id == Notifications.NOTIFICATION_ID }
+        }
+        // The system posts asynchronously: give a notification time to (not) come.
+        SystemClock.sleep(500)
+
+        assertTrue(notificationManager().activeNotifications.none { it.id == Notifications.NOTIFICATION_ID })
+        // No "next card" to announce on the lock screen either.
+        assertEquals(
+            context.getString(R.string.all_cards_done),
+            CardWallpaperService.cardContent(context, waitingForNextLock = true).text,
+        )
     }
 
     @Test
@@ -454,6 +483,23 @@ class ReviewScenariosTest {
     }
 
     @Test
+    fun reviewScreen_answeringTheLastCard_closesTheScreen() {
+        anki.deck(1, "Spanish", FakeAnkiDataSource.Card(10, question = "Hola", answer = "Hello"))
+        select(1)
+        start()
+
+        ActivityScenario.launch<ReviewActivity>(ReviewActivity.intent(context)).use { scenario ->
+            waitForText("Hola")
+            compose.onNodeWithText(context.getString(R.string.show_answer)).performClick()
+            waitForText("Hello")
+            compose.onNodeWithText(context.getString(R.string.good)).performClick()
+
+            waitUntil { scenario.state == Lifecycle.State.DESTROYED }
+            assertEquals(listOf(FakeAnkiDataSource.Answer(10, 0, ease = 3)), anki.answers)
+        }
+    }
+
+    @Test
     fun cardQueriesFail_theSyncKeepsTheDisplayedCard_insteadOfBravo() {
         anki.deck(1, "Spanish", FakeAnkiDataSource.Card(10, question = "Hola"))
         select(1)
@@ -511,6 +557,138 @@ class ReviewScenariosTest {
         }
     }
 
+    @Test
+    fun longCard_keepsItsButtonsVisibleInTheNotification() {
+        val long = "A very long sentence on a card, repeated many times. ".repeat(40)
+        anki.deck(1, "Spanish", FakeAnkiDataSource.Card(10, question = long, answer = long))
+        select(1)
+        start()
+
+        assertFullyVisible(R.id.buttonShowAnswer)
+
+        press(Notifications.ACTION_SHOW_ANSWER)
+        waitUntil { CardReview.isAnswerRevealed(context, storedState().toCardInfo()) }
+        waitUntil { expandedNotification().findViewById<View>(R.id.buttonShowAnswer).visibility == View.GONE }
+
+        assertFullyVisible(R.id.button3)
+    }
+
+    @Test
+    fun longCard_isReadInFullWithMore_thenAnswered() {
+        val question = (1..150).joinToString(" ") { "question$it" }
+        val answer = (1..150).joinToString(" ") { "answer$it" }
+        anki.deck(1, "Spanish", FakeAnkiDataSource.Card(10, question = question, answer = answer))
+        select(1)
+        start()
+
+        assertEquals(question, readAllPages(R.id.textViewExpandedHeader, R.id.buttonShowAnswer))
+        // Back on the first page: no "Previous".
+        assertEquals(View.INVISIBLE, expandedNotification().findViewById<View>(R.id.buttonPreviousPage).visibility)
+
+        press(Notifications.ACTION_SHOW_ANSWER)
+        waitUntil { expandedNotification().findViewById<View>(R.id.buttonShowAnswer).visibility == View.GONE }
+
+        // "Show answer" goes straight to the answer.
+        assertEquals("answer1", text(R.id.textViewContent).substringBefore(' '))
+        assertEquals(View.GONE, expandedNotification().findViewById<View>(R.id.textViewExpandedHeader).visibility)
+        assertEquals(answer, readAllPages(R.id.textViewContent, R.id.button3))
+
+        pressAnswer("ACTION_BUTTON_3")
+        waitUntil { anki.answers.isNotEmpty() }
+        assertEquals(listOf(FakeAnkiDataSource.Answer(10, 0, ease = 3)), anki.answers)
+    }
+
+    @Test
+    fun shortCard_hasNoMoreButton() {
+        anki.deck(1, "Spanish", FakeAnkiDataSource.Card(10, question = "Hola", answer = "Hello"))
+        select(1)
+        start()
+
+        assertEquals(View.GONE, expandedNotification().findViewById<View>(R.id.pageButtons).visibility)
+        assertEquals("Hola", text(R.id.textViewExpandedHeader))
+    }
+
+    /**
+     * Taps "Next" from the current page to the last one, then "Previous" back to it, and returns the text of [textId]
+     * on the pages showing it, in reading order. On each page, the text fits and [buttonId] is fully visible.
+     */
+    private fun readAllPages(textId: Int, buttonId: Int): String {
+        val pages = mutableListOf<String>()
+        val buttonTops = mutableSetOf<Int>()
+        val first = pageLabel()
+        while (true) {
+            val shown = pageLabel()
+            assertFullyVisible(buttonId)
+            buttonTops += top(buttonId)
+            val textView = expandedNotification().findViewById<TextView>(textId)
+            if (textView.visibility == View.VISIBLE) {
+                pages += textView.text.toString()
+                val room = textView.height - textView.totalPaddingTop - textView.totalPaddingBottom
+                assertTrue("$shown: ${textView.layout.height} px of text in $room px", textView.layout.height <= room)
+            }
+            if (!isVisible(R.id.buttonNextPage)) break
+            turnPage(Notifications.ACTION_NEXT_PAGE)
+        }
+        assertTrue("several pages", isVisible(R.id.buttonPreviousPage))
+        assertEquals("the button doesn't move between pages", 1, buttonTops.size)
+        while (pageLabel() != first) turnPage(Notifications.ACTION_PREVIOUS_PAGE)
+        return pages.joinToString(" ")
+    }
+
+    /** Where [id] starts in the expanded notification. */
+    private fun top(id: Int): Int {
+        val root = expandedNotification()
+        val view = root.findViewById<View>(id)
+        val bounds = Rect(0, 0, view.width, view.height)
+        root.offsetDescendantRectToMyCoords(view, bounds)
+        return bounds.top
+    }
+
+    private fun turnPage(action: String) {
+        val shown = pageLabel()
+        // At a human pace: above 5 updates per second, Android drops notification updates.
+        SystemClock.sleep(300)
+        press(action)
+        waitUntil { pageLabel() != shown }
+    }
+
+    private fun isVisible(id: Int) = expandedNotification().findViewById<View>(id).visibility == View.VISIBLE
+
+    private fun pageLabel() = text(R.id.textViewPage)
+
+    private fun text(id: Int) = expandedNotification().findViewById<TextView>(id).text.toString()
+
+    /** The expanded notification in the system's template, at the largest height Android gives it. */
+    private fun expandedNotification(): ViewGroup {
+        var notification: Notification? = null
+        waitUntil {
+            notification = notificationManager().activeNotifications.firstOrNull { it.id == Notifications.NOTIFICATION_ID }?.notification
+            notification != null
+        }
+        val density = context.resources.displayMetrics.density
+        lateinit var root: ViewGroup
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            val views = Notification.Builder.recoverBuilder(context, notification).createBigContentView()
+            root = views.apply(context, FrameLayout(context)) as ViewGroup
+            root.measure(
+                View.MeasureSpec.makeMeasureSpec(context.resources.displayMetrics.widthPixels, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec((MAX_EXPANDED_NOTIFICATION_DP * density).toInt(), View.MeasureSpec.AT_MOST),
+            )
+            root.layout(0, 0, root.measuredWidth, root.measuredHeight)
+        }
+        return root
+    }
+
+    private fun assertFullyVisible(buttonId: Int) {
+        val root = expandedNotification()
+        val button = root.findViewById<View>(buttonId)
+        val bounds = Rect(0, 0, button.width, button.height)
+        root.offsetDescendantRectToMyCoords(button, bounds)
+        val density = context.resources.displayMetrics.density
+        assertTrue("button height: ${bounds.height()}", bounds.height() >= (40 * density).toInt())
+        assertTrue("button bottom ${bounds.bottom}, notification height ${root.height}", bounds.bottom <= root.height)
+    }
+
     /** The review screen loads its card off the main thread: wait for it to show up. */
     private fun waitForText(text: String) {
         compose.waitUntil(5_000) { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
@@ -552,7 +730,7 @@ class ReviewScenariosTest {
         assertEquals(listOf(FakeAnkiDataSource.Answer(10, 0, ease = 3)), anki.answers)
         assertEquals(11L, storedState().noteID)
         // The home screen always moves on: the lock screen still has its review to do.
-        assertFalse(LockSession.prefs(context).getBoolean("answered", false))
+        assertEquals(0, LockSession.prefs(context).getInt("answers", 0))
         assertFalse(LockSession.isWaitingForNextLock(context))
     }
 
@@ -627,5 +805,10 @@ class ReviewScenariosTest {
             if (SystemClock.uptimeMillis() > end) throw AssertionError("condition not met within $timeoutMs ms")
             SystemClock.sleep(50)
         }
+    }
+
+    private companion object {
+        /** The maximum height of an expanded custom notification. */
+        const val MAX_EXPANDED_NOTIFICATION_DP = 256
     }
 }

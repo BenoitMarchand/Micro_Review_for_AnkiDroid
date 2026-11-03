@@ -12,10 +12,14 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.os.Build
 import android.os.Bundle
+import android.text.StaticLayout
+import android.text.TextPaint
 import android.util.Log
+import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.graphics.ColorUtils
+import androidx.core.widget.RemoteViewsCompat
 import java.util.concurrent.Executors
 
 /**
@@ -80,6 +84,11 @@ class StandardCardWidget : AppWidgetProvider() {
         /** Opacity of the deck name and of the divider over the style's text color, as in the default colors. */
         private const val SECONDARY_ALPHA = 0x99
         private const val DIVIDER_ALPHA = 0x40
+
+        /** The stable ids of the scrolling list's items, and the widget's horizontal padding. */
+        private const val SCROLL_ITEM_QUESTION = 1L
+        private const val SCROLL_ITEM_ANSWER = 2L
+        private const val WIDGET_PADDING_DP = 24
 
         const val ACTION_START = "com.ankidroid.companion.WIDGET_START"
         const val ACTION_SHOW_ANSWER = "com.ankidroid.companion.WIDGET_SHOW_ANSWER"
@@ -195,13 +204,46 @@ class StandardCardWidget : AppWidgetProvider() {
             val renderer = renderer ?: CardRenderer(context.resources.displayMetrics.density).also { renderer = it }
             // Each widget has its own size, so its own background.
             for (id in ids) {
-                val views = views(context)
-                if (style != null) {
-                    val (widthDp, heightDp) = sizeDp(context, manager.getAppWidgetOptions(id))
-                    applyStyle(context, views, renderer, style, picture, widthDp, heightDp)
-                }
+                val (widthDp, heightDp) = sizeDp(context, manager.getAppWidgetOptions(id))
+                val views = views(context, id, widthDp, heightDp, style)
+                if (style != null) applyStyle(context, views, renderer, style, picture, widthDp, heightDp)
                 manager.updateAppWidget(id, views)
             }
+        }
+
+        /** Shows [question] and, unless null, [answer] in the scrolling list; on the answer, once it is revealed. */
+        private fun showScrollingCard(context: Context, views: RemoteViews, appWidgetId: Int, question: String, answer: String?, style: WallpaperStyle?) {
+            val items = RemoteViewsCompat.RemoteCollectionItems.Builder().setHasStableIds(true).setViewTypeCount(2)
+            items.addItem(SCROLL_ITEM_QUESTION, scrollItem(context, R.layout.card_widget_question_item, question, style))
+            if (answer != null) {
+                val item = scrollItem(context, R.layout.card_widget_answer_item, answer, style)
+                if (style != null) {
+                    item.setInt(R.id.widgetItemDivider, "setBackgroundColor", ColorUtils.setAlphaComponent(style.textColor, DIVIDER_ALPHA))
+                }
+                items.addItem(SCROLL_ITEM_ANSWER, item)
+            }
+            RemoteViewsCompat.setRemoteAdapter(context, views, appWidgetId, R.id.widgetScroll, items.build())
+            views.setScrollPosition(R.id.widgetScroll, if (answer != null) 1 else 0)
+        }
+
+        private fun scrollItem(context: Context, layout: Int, text: String, style: WallpaperStyle?): RemoteViews {
+            val item = RemoteViews(context.packageName, layout)
+            item.setTextViewText(R.id.widgetItemText, text)
+            if (style != null) item.setTextColor(R.id.widgetItemText, style.textColor)
+            return item
+        }
+
+        /** Whether [texts] are too long for the widget's large text ([CardWidgetContent.needsScroll]). */
+        private fun needsScroll(context: Context, texts: List<String>, widthDp: Int, heightDp: Int): Boolean {
+            val metrics = context.resources.displayMetrics
+            val paint = TextPaint().apply {
+                textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, CardWidgetContent.READABLE_TEXT_SP, metrics)
+                isFakeBoldText = true
+            }
+            val width = (((if (widthDp > 0) widthDp else CardWidgetContent.DEFAULT_WIDTH_DP) - WIDGET_PADDING_DP) * metrics.density).toInt().coerceAtLeast(1)
+            val layouts = texts.map { StaticLayout.Builder.obtain(it, 0, it.length, paint, width).build() }
+            val height = (if (heightDp > 0) heightDp else CardWidgetContent.DEFAULT_HEIGHT_DP) * metrics.density
+            return CardWidgetContent.needsScroll(layouts.map { it.lineCount }, paint.fontSpacing, height, metrics.density)
         }
 
         /**
@@ -259,7 +301,7 @@ class StandardCardWidget : AppWidgetProvider() {
             }
         }
 
-        private fun views(context: Context): RemoteViews {
+        private fun views(context: Context, appWidgetId: Int, widthDp: Int, heightDp: Int, style: WallpaperStyle?): RemoteViews {
             val views = RemoteViews(context.packageName, R.layout.card_widget)
             val anki = AnkiDroidHelper(context)
             val state = anki.storedState
@@ -280,6 +322,7 @@ class StandardCardWidget : AppWidgetProvider() {
                 }
             }
 
+            var scrolls = false
             when (kind) {
                 CardWidgetContent.Kind.NOT_STARTED, CardWidgetContent.Kind.DONE -> {
                     views.setTextViewText(R.id.widgetDeck, "")
@@ -302,8 +345,15 @@ class StandardCardWidget : AppWidgetProvider() {
                 }
                 CardWidgetContent.Kind.QUESTION, CardWidgetContent.Kind.ANSWER -> {
                     views.setTextViewText(R.id.widgetDeck, card!!.deckName)
-                    views.setTextViewText(R.id.widgetQuestion, CardText.clean(card.q))
-                    views.setTextViewText(R.id.widgetAnswer, CardText.clean(card.a))
+                    val question = CardText.clean(card.q)
+                    val answer = CardText.clean(card.a).takeIf { kind == CardWidgetContent.Kind.ANSWER }
+                    scrolls = needsScroll(context, listOfNotNull(question, answer), widthDp, heightDp)
+                    if (scrolls) {
+                        showScrollingCard(context, views, appWidgetId, question, answer, style)
+                    } else {
+                        views.setTextViewText(R.id.widgetQuestion, question)
+                        views.setTextViewText(R.id.widgetAnswer, answer.orEmpty())
+                    }
                     val visible = AnswerButtons.visibleButtons(card.buttonCount)
                     answerButtonIds.forEach { (button, id) ->
                         views.setViewVisibility(id, if (button in visible) View.VISIBLE else View.GONE)
@@ -315,8 +365,10 @@ class StandardCardWidget : AppWidgetProvider() {
             views.setViewVisibility(R.id.widgetDeck, if (kind == CardWidgetContent.Kind.QUESTION || answer) View.VISIBLE else View.GONE)
             views.setViewVisibility(R.id.widgetStart, if (idle) View.VISIBLE else View.GONE)
             views.setViewVisibility(R.id.widgetShowAnswer, if (kind == CardWidgetContent.Kind.QUESTION) View.VISIBLE else View.GONE)
-            views.setViewVisibility(R.id.widgetDivider, if (answer) View.VISIBLE else View.GONE)
-            views.setViewVisibility(R.id.widgetAnswer, if (answer) View.VISIBLE else View.GONE)
+            views.setViewVisibility(R.id.widgetQuestion, if (scrolls) View.GONE else View.VISIBLE)
+            views.setViewVisibility(R.id.widgetScroll, if (scrolls) View.VISIBLE else View.GONE)
+            views.setViewVisibility(R.id.widgetDivider, if (answer && !scrolls) View.VISIBLE else View.GONE)
+            views.setViewVisibility(R.id.widgetAnswer, if (answer && !scrolls) View.VISIBLE else View.GONE)
             views.setViewVisibility(R.id.widgetAnswerButtons, if (answer) View.VISIBLE else View.GONE)
             return views
         }

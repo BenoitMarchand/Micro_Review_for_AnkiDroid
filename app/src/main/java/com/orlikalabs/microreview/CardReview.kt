@@ -16,6 +16,10 @@ object CardReview {
     /** The card whose answer is shown, as "noteId:ord". A new card doesn't match, so the flag clears itself. */
     private const val KEY_REVEALED_CARD = "revealed_card"
 
+    /** The page shown after "Previous" or "Next" ([KEY_PAGE]) and its card ([KEY_PAGE_CARD]); another card doesn't match. */
+    private const val KEY_PAGE_CARD = "page_card"
+    private const val KEY_PAGE = "page"
+
     /** The intent data of an answer button: the card it answers ([answeredCard]). */
     private const val CARD_SCHEME = "microreview"
     private const val CARD_AUTHORITY = "card"
@@ -25,7 +29,8 @@ object CardReview {
 
     /**
      * Answers the displayed card with [button] (one of [AnswerButtons]) and stores the next card. The next card
-     * is shown right away, or, with one review per lock session, at the next lock ("Next card at your next unlock").
+     * is shown right away, or, once the lock session's cards are reviewed, at the next lock ("Next card at your next unlock").
+     * With no card left, the notification is removed.
      *
      * Only if [card], the card the button was shown with, is still the displayed one: otherwise the tap came late
      * (a double tap, a tap queued while the previous answer was being recorded) and would answer a card the user
@@ -62,10 +67,11 @@ object CardReview {
                 anki.reviewCard(localState.noteID, localState.cardOrd, ease, timeTaken)
             }
 
-            // With one review per session, the next card is stored now but its notification waits for the next lock.
-            CardStateController.showNextCard(context, silent = true, notifyIfNone = true)
+            // After the session's last review, the next card is stored now but its notification waits for the next lock.
+            CardStateController.showNextCard(context, silent = true)
             // Only while locked: unlocked (answered from a scheduled review), the lock screen notification stays hidden.
-            if (after == LockSession.AfterAnswer.WAIT_FOR_NEXT_LOCK && LockSession.isLocked(context)) {
+            // Not with no card left: no next card to announce. The stored card stays if AnkiDroid couldn't be read.
+            if (after == LockSession.AfterAnswer.WAIT_FOR_NEXT_LOCK && LockSession.isLocked(context) && anki.storedState?.hasCard() == true) {
                 // The answered card stays in the notification, with the message in place of its buttons.
                 Notifications.create().showNextCardMessage(context, localState.toCardInfo(), localState.deckName)
             }
@@ -95,10 +101,45 @@ object CardReview {
         val state = AnkiDroidHelper(context).storedState?.takeIf { it.hasCard() } ?: return
         // The card is obviously seen: start the timer if no screen event did (it keeps running otherwise).
         ReviewTimer.onCardSeen(context, CardSync.CardKey(state.noteID, state.cardOrd))
-        prefs(context).edit().putString(KEY_REVEALED_CARD, key(state.noteID, state.cardOrd)).apply()
+        // The pages change with the answer: back to its first one.
+        prefs(context).edit().putString(KEY_REVEALED_CARD, key(state.noteID, state.cardOrd)).remove(KEY_PAGE_CARD).apply()
         StandardCardWidget.updateAll(context)
         if (!LockSession.mayPostNow(context)) return
         Notifications.create().showNotification(context, state.toCardInfo(), state.deckName, isSilent = true, replace = false)
+    }
+
+    /** "Previous" ([step] -1) or "Next" (1): another page of the displayed card, in the notification (updated in place, without alert). */
+    fun showPage(context: Context, step: Int) {
+        val state = AnkiDroidHelper(context).storedState?.takeIf { it.hasCard() } ?: return
+        val card = state.toCardInfo()
+        val revealed = isAnswerRevealed(context, card) || isAnswerOnWallpaper(context)
+        moveToPage(context, card, revealed, step)
+        if (!LockSession.mayPostNow(context)) return
+        Notifications.create().showNotification(context, card, state.deckName, isSilent = true, replace = false)
+    }
+
+    fun showPreviousPage(context: Context) = showPage(context, -1)
+
+    fun showNextPage(context: Context) = showPage(context, 1)
+
+    /** Moves [card] [step] pages on, staying within its pages. The card is obviously seen: as in [revealAnswer]. */
+    fun moveToPage(context: Context, card: CardInfo, revealed: Boolean, step: Int) {
+        ReviewTimer.onCardSeen(context, CardSync.CardKey(card.noteID, card.cardOrd))
+        val pages = Notifications.cardPages(context, card, revealed)
+        val page = (currentPage(context, card, pages) + step).coerceIn(pages.indices)
+        prefs(context).edit().putString(KEY_PAGE_CARD, key(card.noteID, card.cardOrd)).putInt(KEY_PAGE, page).apply()
+    }
+
+    /**
+     * The page of [card] to show, among its [pages]. Until "Previous" or "Next" is tapped: the answer's first page after "Show
+     * answer"; otherwise the first page, also when the wallpaper shows the answer: the question hasn't been read yet.
+     */
+    fun currentPage(context: Context, card: CardInfo, pages: List<CardPages.Page>): Int {
+        val prefs = prefs(context)
+        if (prefs.getString(KEY_PAGE_CARD, null) == key(card.noteID, card.cardOrd)) {
+            return prefs.getInt(KEY_PAGE, 0).coerceIn(pages.indices)
+        }
+        return if (isAnswerRevealed(context, card)) CardPages.firstAnswerPage(pages) else 0
     }
 
     /** Whether the answer of [card] was revealed. */

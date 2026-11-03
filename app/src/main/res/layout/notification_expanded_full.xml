@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Question, then "Show answer"; once revealed: the answer and the answer buttons. After the session's answer,
-     the message "Next card at your next unlock" replaces the buttons. -->
+     the message "Next card at your next unlock" replaces the buttons.
+     A notification has a maximum height and can't scroll: a long card is read in pages with "Previous" and "Next" (CardPages).
+     If a page is still too tall, the texts have a weight, so they give up height and the buttons always stay visible. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/layoutExpanded"
     android:layout_width="match_parent"
@@ -9,76 +11,107 @@
     android:paddingTop="4dp"
     android:paddingBottom="8dp">
 
+    <!-- The pages of a long card, at the top and discreet, away from the answer buttons. On the first and last page,
+         Previous or Next is invisible, not gone: the buttons don't move. -->
+    <LinearLayout
+        android:id="@+id/pageButtons"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <Button
+            android:id="@+id/buttonPreviousPage"
+            style="@style/NotificationPageButton"
+            android:background="@drawable/bg_pill_page"
+            android:textColor="@color/page_button_text"
+            android:text="@string/card_page_previous" />
+
+        <TextView
+            android:id="@+id/textViewPage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="8dp"
+            android:textColor="@color/page_button_text"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/buttonNextPage"
+            style="@style/NotificationPageButton"
+            android:background="@drawable/bg_pill_page"
+            android:textColor="@color/page_button_text"
+            android:text="@string/card_page_next" />
+    </LinearLayout>
+
     <TextView
         android:id="@+id/textViewExpandedHeader"
         style="@style/TextAppearance.Compat.Notification.Title"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:paddingVertical="8dp" />
 
+    <FrameLayout
+        android:id="@+id/answerDivider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/notification_divider"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/textViewContent"
+        style="@style/TextAppearance.Compat.Notification"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingVertical="8dp"
+        android:visibility="gone" />
+
     <LinearLayout
-        android:id="@+id/answerGroup"
+        android:id="@+id/answerButtons"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:orientation="horizontal"
         android:visibility="gone">
 
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@color/notification_divider" />
+        <Button
+            android:id="@+id/button1"
+            style="@style/NotificationAnswerButton"
+            android:background="@drawable/bg_pill_again"
+            android:textColor="@color/again_button_text"
+            android:text="@string/again" />
 
-        <TextView
-            android:id="@+id/textViewContent"
-            style="@style/TextAppearance.Compat.Notification"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingVertical="8dp" />
+        <Button
+            android:id="@+id/button2"
+            style="@style/NotificationAnswerButton"
+            android:background="@drawable/bg_pill_hard"
+            android:textColor="@color/hard_button_text"
+            android:text="@string/hard" />
 
-        <LinearLayout
-            android:id="@+id/answerButtons"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
+        <Button
+            android:id="@+id/button3"
+            style="@style/NotificationAnswerButton"
+            android:background="@drawable/bg_pill_good"
+            android:textColor="@color/good_button_text"
+            android:text="@string/good" />
 
-            <Button
-                android:id="@+id/button1"
-                style="@style/NotificationAnswerButton"
-                android:background="@drawable/bg_pill_again"
-                android:textColor="@color/again_button_text"
-                android:text="@string/again" />
-
-            <Button
-                android:id="@+id/button2"
-                style="@style/NotificationAnswerButton"
-                android:background="@drawable/bg_pill_hard"
-                android:textColor="@color/hard_button_text"
-                android:text="@string/hard" />
-
-            <Button
-                android:id="@+id/button3"
-                style="@style/NotificationAnswerButton"
-                android:background="@drawable/bg_pill_good"
-                android:textColor="@color/good_button_text"
-                android:text="@string/good" />
-
-            <Button
-                android:id="@+id/button4"
-                style="@style/NotificationAnswerButton"
-                android:background="@drawable/bg_pill_easy"
-                android:textColor="@color/easy_button_text"
-                android:text="@string/easy" />
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/textViewNextCard"
-            style="@style/TextAppearance.Compat.Notification.Title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingVertical="8dp"
-            android:text="@string/next_card_at_next_unlock"
-            android:visibility="gone" />
+        <Button
+            android:id="@+id/button4"
+            style="@style/NotificationAnswerButton"
+            android:background="@drawable/bg_pill_easy"
+            android:textColor="@color/easy_button_text"
+            android:text="@string/easy" />
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/textViewNextCard"
+        style="@style/TextAppearance.Compat.Notification.Title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingVertical="8dp"
+        android:text="@string/next_card_at_next_unlock"
+        android:visibility="gone" />
 
     <Button
         android:id="@+id/buttonShowAnswer"

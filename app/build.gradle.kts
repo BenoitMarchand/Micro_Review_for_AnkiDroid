@@ -27,8 +27,8 @@ android {
         applicationId = "com.orlikalabs.microreview"
         minSdk = 26
         targetSdk = 36
-        versionCode = 63
-        versionName = "0.4.0"
+        versionCode = 75
+        versionName = "0.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -104,6 +104,7 @@ androidComponents {
 dependencies {
 
     implementation("androidx.core:core-ktx:1.17.0")
+    implementation("androidx.core:core-remoteviews:1.1.0")
     implementation("androidx.exifinterface:exifinterface:1.4.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
     implementation("androidx.activity:activity-compose:1.11.0")

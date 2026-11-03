@@ -57,6 +57,29 @@ object CardWidgetContent {
         else -> Kind.QUESTION
     }
 
+    /** The most lines a text shows without scrolling, in the layout. */
+    const val MAX_LINES = 8
+
+    /** The text size of a scrolling card; a card that would need less than this scrolls instead of shrinking. */
+    const val READABLE_TEXT_SP = 14f
+
+    /** The widget's height taken by everything but the texts, and by each text's padding. */
+    const val CHROME_HEIGHT_DP = 86
+    const val TEXT_PADDING_DP = 8
+
+    /**
+     * Whether a card scrolls instead of showing as large text: a text is over [MAX_LINES], or doesn't fit its share
+     * of the widget's height at the readable size. The visible texts share the height evenly.
+     *
+     * @param lineCounts the lines of each visible text, at the readable size
+     * @param heightPx the widget's height
+     */
+    fun needsScroll(lineCounts: List<Int>, lineHeightPx: Float, heightPx: Float, density: Float): Boolean {
+        val free = heightPx - (CHROME_HEIGHT_DP + lineCounts.size * TEXT_PADDING_DP) * density
+        val share = free / lineCounts.size
+        return lineCounts.any { it > MAX_LINES || it * lineHeightPx > share }
+    }
+
     /** Whether a review started on the widget is still going on: the last tap was less than [TIMEOUT_MS] ago. */
     fun isReviewing(activeUntil: Long, now: Long): Boolean = now < activeUntil
 
