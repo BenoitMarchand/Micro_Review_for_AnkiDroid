@@ -288,9 +288,11 @@ class Notifications {
         val pages = cardPages(context, card, revealed)
         val index = CardReview.currentPage(context, card, pages)
         val page = pages[index]
-        view.setTextViewText(R.id.textViewExpandedHeader, page.question.orEmpty())
+        // The blank lines go after the page's last text.
+        val blank = "\n".repeat(page.blankLines)
+        view.setTextViewText(R.id.textViewExpandedHeader, page.question.orEmpty() + if (page.answer == null) blank else "")
         view.setViewVisibility(R.id.textViewExpandedHeader, if (page.question != null) View.VISIBLE else View.GONE)
-        view.setTextViewText(R.id.textViewContent, page.answer.orEmpty())
+        view.setTextViewText(R.id.textViewContent, page.answer?.plus(blank).orEmpty())
         view.setViewVisibility(R.id.textViewContent, if (page.answer != null) View.VISIBLE else View.GONE)
         view.setViewVisibility(R.id.answerDivider, if (page.question != null && page.answer != null) View.VISIBLE else View.GONE)
         if (pageActions != null && pages.size > 1) {

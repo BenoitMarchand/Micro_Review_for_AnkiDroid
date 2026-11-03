@@ -5,8 +5,11 @@ package com.orlikalabs.microreview
  * free of Android classes so it can be unit tested: the laid out lines of a text come from [lineEnds].
  */
 object CardPages {
-    /** What one page shows; a null text is hidden. */
-    data class Page(val question: String?, val answer: String?)
+    /**
+     * What one page shows; a null text is hidden. A page shorter than the others of its card adds [blankLines] after
+     * its last text: all the pages have the same height, so the buttons below don't move.
+     */
+    data class Page(val question: String?, val answer: String?, val blankLines: Int = 0)
 
     /**
      * The height available for the text, in any unit: [height] without the "Previous" and "Next" buttons, which take
@@ -29,27 +32,29 @@ object CardPages {
         val questionEnds = lineEnds(question)
         if (answer == null) {
             if (questionEnds.size <= room.lines(1, more = false)) return listOf(Page(question, null))
-            return split(question, questionEnds, room.lines(1, more = true)).map { Page(it, null) }
+            return split(question, questionEnds, room.lines(1, more = true)).map { Page(it.text, null, it.blankLines) }
         }
         val answerEnds = lineEnds(answer)
         if (questionEnds.size + answerEnds.size <= room.lines(2, more = false)) return listOf(Page(question, answer))
         val sharedLines = room.lines(2, more = true)
         if (questionEnds.size <= sharedLines / 3) {
-            return split(answer, answerEnds, sharedLines - questionEnds.size).map { Page(question, it) }
+            return split(answer, answerEnds, sharedLines - questionEnds.size).map { Page(question, it.text, it.blankLines) }
         }
         val lines = room.lines(1, more = true)
-        return split(question, questionEnds, lines).map { Page(it, null) } +
-            split(answer, answerEnds, lines).map { Page(null, it) }
+        return split(question, questionEnds, lines).map { Page(it.text, null, it.blankLines) } +
+            split(answer, answerEnds, lines).map { Page(null, it.text, it.blankLines) }
     }
 
     /** The page to start on: the answer's first one, when it was just asked for with "Show answer". */
     fun firstAnswerPage(pages: List<Page>): Int = pages.indexOfFirst { it.answer != null }.coerceAtLeast(0)
 
-    private fun split(text: String, lineEnds: List<Int>, linesPerPage: Int): List<String> {
-        if (lineEnds.isEmpty()) return listOf(text)
+    private class Chunk(val text: String, val blankLines: Int)
+
+    private fun split(text: String, lineEnds: List<Int>, linesPerPage: Int): List<Chunk> {
+        if (lineEnds.isEmpty()) return listOf(Chunk(text, linesPerPage - 1))
         return lineEnds.chunked(linesPerPage).mapIndexed { index, chunk ->
             val start = if (index == 0) 0 else lineEnds[index * linesPerPage - 1]
-            text.substring(start, chunk.last()).trim()
+            Chunk(text.substring(start, chunk.last()).trim(), linesPerPage - chunk.size)
         }
     }
 }

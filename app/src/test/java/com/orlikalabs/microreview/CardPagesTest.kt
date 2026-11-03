@@ -64,6 +64,18 @@ class CardPagesTest {
     }
 
     @Test
+    fun allThePagesOfACardHaveTheSameHeight() {
+        fun height(page: CardPages.Page) =
+            listOfNotNull(page.question, page.answer).sumOf { lineEnds(it).size } + page.blankLines
+
+        assertEquals(listOf(6, 6, 6, 6), pages(words(20), null).map(::height))
+        assertEquals(listOf(5, 5, 5), pages("q", words(12)).map(::height))
+        assertEquals(setOf(6), pages(words(10, "q"), words(9, "a")).map(::height).toSet())
+        // A card on one page keeps its own height.
+        assertEquals(0, pages("q", "a").single().blankLines)
+    }
+
+    @Test
     fun firstAnswerPageSkipsTheQuestionPages() {
         assertEquals(2, CardPages.firstAnswerPage(pages(words(10, "q"), words(10, "a"))))
         assertEquals(0, CardPages.firstAnswerPage(pages("q", "a")))

@@ -614,13 +614,16 @@ class ReviewScenariosTest {
      */
     private fun readAllPages(textId: Int, buttonId: Int): String {
         val pages = mutableListOf<String>()
+        val buttonTops = mutableSetOf<Int>()
         val first = pageLabel()
         while (true) {
             val shown = pageLabel()
             assertFullyVisible(buttonId)
+            buttonTops += top(buttonId)
             val textView = expandedNotification().findViewById<TextView>(textId)
             if (textView.visibility == View.VISIBLE) {
-                pages += textView.text.toString()
+                // Without the blank lines that give a short page the height of the others.
+                pages += textView.text.toString().trimEnd('\n')
                 val room = textView.height - textView.totalPaddingTop - textView.totalPaddingBottom
                 assertTrue("$shown: ${textView.layout.height} px of text in $room px", textView.layout.height <= room)
             }
@@ -628,8 +631,18 @@ class ReviewScenariosTest {
             turnPage(Notifications.ACTION_NEXT_PAGE)
         }
         assertTrue("several pages", isVisible(R.id.buttonPreviousPage))
+        assertEquals("the button doesn't move between pages", 1, buttonTops.size)
         while (pageLabel() != first) turnPage(Notifications.ACTION_PREVIOUS_PAGE)
         return pages.joinToString(" ")
+    }
+
+    /** Where [id] starts in the expanded notification. */
+    private fun top(id: Int): Int {
+        val root = expandedNotification()
+        val view = root.findViewById<View>(id)
+        val bounds = Rect(0, 0, view.width, view.height)
+        root.offsetDescendantRectToMyCoords(view, bounds)
+        return bounds.top
     }
 
     private fun turnPage(action: String) {
