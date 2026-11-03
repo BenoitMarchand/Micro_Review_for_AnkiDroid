@@ -48,11 +48,8 @@ Micro Review for AnkiDroid is an independent open source app. It is not made or 
 
 ## Release notes (500 characters max per language)
 
-Write them from the merged pull requests of the release, for example:
-
-```
-First release: review your AnkiDroid cards from the lock screen, a notification or a home screen widget.
-```
+They come from [CHANGELOG.md](../../CHANGELOG.md): the GitHub release of each version has them ready to paste, under
+"Play Store release notes" (with their length).
 
 ## Categorization and contact
 
