@@ -11,6 +11,39 @@
     android:paddingTop="4dp"
     android:paddingBottom="8dp">
 
+    <!-- The pages of a long card, at the top and discreet, away from the answer buttons. On the first and last page,
+         Previous or Next is invisible, not gone: the buttons don't move. -->
+    <LinearLayout
+        android:id="@+id/pageButtons"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <Button
+            android:id="@+id/buttonPreviousPage"
+            style="@style/NotificationPageButton"
+            android:background="@drawable/bg_pill_page"
+            android:textColor="@color/page_button_text"
+            android:text="@string/card_page_previous" />
+
+        <TextView
+            android:id="@+id/textViewPage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="8dp"
+            android:textColor="@color/page_button_text"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/buttonNextPage"
+            style="@style/NotificationPageButton"
+            android:background="@drawable/bg_pill_page"
+            android:textColor="@color/page_button_text"
+            android:text="@string/card_page_next" />
+    </LinearLayout>
+
     <TextView
         android:id="@+id/textViewExpandedHeader"
         style="@style/TextAppearance.Compat.Notification.Title"
@@ -34,38 +67,6 @@
         android:layout_weight="1"
         android:paddingVertical="8dp"
         android:visibility="gone" />
-
-    <!-- The pages of a long card. On the first and last page, Previous or Next is invisible, not gone: the buttons
-         don't move. -->
-    <LinearLayout
-        android:id="@+id/pageButtons"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:visibility="gone">
-
-        <Button
-            android:id="@+id/buttonPreviousPage"
-            style="@style/NotificationPageButton"
-            android:background="@drawable/bg_pill_show_answer"
-            android:textColor="@color/show_answer_button_text"
-            android:text="@string/card_page_previous" />
-
-        <TextView
-            android:id="@+id/textViewPage"
-            style="@style/TextAppearance.Compat.Notification"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:paddingHorizontal="8dp" />
-
-        <Button
-            android:id="@+id/buttonNextPage"
-            style="@style/NotificationPageButton"
-            android:background="@drawable/bg_pill_show_answer"
-            android:textColor="@color/show_answer_button_text"
-            android:text="@string/card_page_next" />
-    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/answerButtons"
