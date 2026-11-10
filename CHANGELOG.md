@@ -7,6 +7,7 @@ Internal changes (tests, build, documentation) don't go here: the GitHub release
 
 ## Unreleased
 
+- The main screen shows how many cards you reviewed today, and for how many days in a row.
 - Without AnkiDroid, the app now offers to install it; with its API turned off, it opens AnkiDroid to turn it on.
 - On cards whose answer repeated the question, only the answer is shown now.
 - The card notification can be swiped away like other notifications. It comes back at the next lock, or with the next card.
