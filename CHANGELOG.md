@@ -8,6 +8,7 @@ Internal changes (tests, build, documentation) don't go here: the GitHub release
 ## Unreleased
 
 - On cards whose answer repeated the question, only the answer is shown now.
+- The card notification can be swiped away like other notifications. It comes back at the next lock, or with the next card.
 - Decks added in AnkiDroid, and their due counts, now show up when you come back to the app, without restarting it.
 
 ## 0.5.0 (2026-11-03)
