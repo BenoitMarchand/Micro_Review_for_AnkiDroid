@@ -24,7 +24,8 @@ object CardText {
         """<span\b[^>]*\bclass\s*=\s*(["']?)cloze\1(?=[\s>])[^>]*>(.*?)</span\s*>""",
         setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
     )
-    private val EXTRA_BLANK_LINES = Regex("\n{3,}")
+    // Line breaks with only empty lines between them (spaces and non-breaking spaces count as empty).
+    private val EMPTY_LINES = Regex("\n(?:[ \t ]*\n)+")
     private const val OBJECT_REPLACEMENT = '￼'
 
     /** Whether the HTML plays a sound. Cards whose question has sound are skipped for now. */
@@ -54,6 +55,7 @@ object CardText {
     /**
      * The text of the card HTML with its emphasis: bold, italics, underline, strikethrough, subscript and superscript.
      * Colors, fonts and sizes are dropped: they may be unreadable on the notification or the chosen card style.
+     * Empty lines are removed (the converter adds one after each paragraph and `<div>`): a long card fits in fewer lines.
      */
     @JvmStatic
     fun styled(html: String?): CharSequence {
@@ -62,7 +64,7 @@ object CardText {
         text.getSpans(0, text.length, Any::class.java).filterNot(::isEmphasis).forEach(text::removeSpan)
         // Images: their placeholder character becomes a space. One character for one, so the spans stay in place.
         for (i in text.indices) if (text[i] == OBJECT_REPLACEMENT) text.replace(i, i + 1, " ")
-        EXTRA_BLANK_LINES.findAll(text.toString()).toList().asReversed().forEach { text.replace(it.range.first, it.range.last + 1, "\n\n") }
+        EMPTY_LINES.findAll(text.toString()).toList().asReversed().forEach { text.replace(it.range.first, it.range.last + 1, "\n") }
         return text.trim()
     }
 

@@ -68,8 +68,18 @@ class CardTextDeviceTest {
 
     @Test
     fun styled_imagesAndBlankLines_likeClean() {
-        assertEquals("a\n\nb", CardText.clean("a<br><br><br><br>b"))
+        assertEquals("a\nb", CardText.clean("a<br><br><br><br>b"))
         assertEquals("x", CardText.clean("<img src=a.png> x "))
+    }
+
+    @Test
+    fun emptyLines_areRemoved_keepingStyles() {
+        assertEquals("a\nb\nc", CardText.clean("<p>a</p><p>b</p><div>c</div>"))
+        assertEquals("a\nb", CardText.clean("a<br>&nbsp;<br> <br>b"))
+        val text = CardText.styled("<p>one</p><p><b>two</b></p>") as Spanned
+        assertEquals("one\ntwo", text.toString())
+        val bold = text.getSpans(0, text.length, StyleSpan::class.java).single()
+        assertEquals("two", text.subSequence(text.getSpanStart(bold), text.getSpanEnd(bold)).toString())
     }
 
     @Test
