@@ -9,7 +9,7 @@ class CardPagesTest {
     private val room = CardPages.Room(height = 90f, pageButtons = 20f, textPadding = 10f, lineHeight = 10f)
 
     /** One line per word. */
-    private fun lineEnds(text: String): List<Int> {
+    private fun lineEnds(text: CharSequence): List<Int> {
         val ends = Regex("\\S+ ?").findAll(text).map { it.range.last + 1 }.toList()
         return ends
     }

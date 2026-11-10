@@ -10,7 +10,7 @@ object CardPages {
      * [questionLines] or [answerLines] lines (0: its own height): all the pages have the same height, so the buttons
      * below don't move, even when a text takes fewer lines than measured or the last page is short.
      */
-    data class Page(val question: String?, val answer: String?, val questionLines: Int = 0, val answerLines: Int = 0)
+    data class Page(val question: CharSequence?, val answer: CharSequence?, val questionLines: Int = 0, val answerLines: Int = 0)
 
     /**
      * The height available for the text, in any unit: [height] without the "Previous" and "Next" buttons, which take
@@ -28,8 +28,9 @@ object CardPages {
      *
      * @param answer null while the answer is hidden
      * @param lineEnds where each laid out line of a text ends, as offsets in the text
+     * Styled texts keep their styles on each page ([CharSequence.subSequence]).
      */
-    fun pages(question: String, answer: String?, room: Room, lineEnds: (String) -> List<Int>): List<Page> {
+    fun pages(question: CharSequence, answer: CharSequence?, room: Room, lineEnds: (CharSequence) -> List<Int>): List<Page> {
         val questionEnds = lineEnds(question)
         if (answer == null) {
             if (questionEnds.size <= room.lines(1, more = false)) return listOf(Page(question, null))
@@ -51,11 +52,11 @@ object CardPages {
     /** The page to start on: the answer's first one, when it was just asked for with "Show answer". */
     fun firstAnswerPage(pages: List<Page>): Int = pages.indexOfFirst { it.answer != null }.coerceAtLeast(0)
 
-    private fun split(text: String, lineEnds: List<Int>, linesPerPage: Int): List<String> {
+    private fun split(text: CharSequence, lineEnds: List<Int>, linesPerPage: Int): List<CharSequence> {
         if (lineEnds.isEmpty()) return listOf(text)
         return lineEnds.chunked(linesPerPage).mapIndexed { index, chunk ->
             val start = if (index == 0) 0 else lineEnds[index * linesPerPage - 1]
-            text.substring(start, chunk.last()).trim()
+            text.subSequence(start, chunk.last()).trim()
         }
     }
 }

@@ -90,6 +90,25 @@ class CardTextTest {
     }
 
     @Test
+    fun clozeIsMadeBold() {
+        assertEquals("Paris is the capital of <b>France</b>", CardText.prepare("Paris is the capital of <span class=cloze>France</span>"))
+        assertEquals("<b>[...]</b> is", CardText.prepare("<span class=\"cloze\" data-cloze=\"France\" data-ordinal=\"1\">[...]</span> is"))
+        assertEquals("<b>a</b> and <b>b</b>", CardText.prepare("<span class='cloze'>a</span> and <SPAN CLASS=cloze>b</SPAN>"))
+    }
+
+    @Test
+    fun inactiveClozeAndOtherSpansAreLeftAlone() {
+        val inactive = "<span class=\"cloze-inactive\" data-ordinal=\"2\">Berlin</span>"
+        assertEquals(inactive, CardText.prepare(inactive))
+        assertEquals("<span class=\"clozed\">x</span>", CardText.prepare("<span class=\"clozed\">x</span>"))
+    }
+
+    @Test
+    fun horizontalRuleBecomesALineBreak() {
+        assertEquals("a<br>b<br>c", CardText.prepare("a<hr>b<HR id=answer>c"))
+    }
+
+    @Test
     fun keepsTextThatOnlyMentionsScripts() {
         assertEquals("<p>scripts and styles</p>", CardText.stripHiddenHtml("<p>scripts and styles</p>"))
         assertEquals("<scripture>Genesis</scripture>", CardText.stripHiddenHtml("<scripture>Genesis</scripture>"))

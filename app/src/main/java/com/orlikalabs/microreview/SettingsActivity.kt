@@ -587,9 +587,9 @@ private fun PictureFilterSection(
 /** The current card if there is one, otherwise an example, to preview the style with real-looking content. */
 private fun previewContent(context: android.content.Context): CardContent {
     val state = AnkiDroidHelper(context).storedState
-    val question = state?.takeIf { it.hasCard() }?.let { CardText.clean(it.question) }.orEmpty()
+    val question: CharSequence = state?.takeIf { it.hasCard() }?.let { CardText.styled(it.question) } ?: ""
     return if (question.isNotEmpty()) {
-        CardContent(question, state!!.deckName.replace("::", " › "), CardText.withoutQuestion(question, CardText.clean(state.answer)))
+        CardContent(question, state!!.deckName.replace("::", " › "), CardText.styledAnswer(state.question, state.answer))
     } else {
         CardContent(
             context.getString(R.string.wallpaper_preview_question),

@@ -19,7 +19,7 @@ import androidx.core.graphics.ColorUtils
  * What the lock screen shows: the question, an optional smaller line under it (the deck name), and the answer,
  * drawn under the question when the style shows it ([WallpaperStyle.showAnswer]).
  */
-data class CardContent(val text: String, val subtitle: String? = null, val answer: String? = null)
+data class CardContent(val text: CharSequence, val subtitle: String? = null, val answer: CharSequence? = null)
 
 /** Draws the lock screen card. Used by the live wallpaper and by the preview in the wallpaper settings. */
 class CardRenderer(private val density: Float) {
@@ -230,7 +230,7 @@ class CardRenderer(private val density: Float) {
     /** How many lines of [paint]'s text fit in [height] (at least one). */
     private fun maxLines(height: Float, paint: TextPaint) = (height / paint.fontSpacing).toInt().coerceAtLeast(1)
 
-    private fun layout(text: String, paint: TextPaint, width: Int, maxLines: Int = Int.MAX_VALUE): StaticLayout =
+    private fun layout(text: CharSequence, paint: TextPaint, width: Int, maxLines: Int = Int.MAX_VALUE): StaticLayout =
         StaticLayout.Builder.obtain(text, 0, text.length, paint, width)
             .setAlignment(Layout.Alignment.ALIGN_CENTER)
             .setLineSpacing(0f, LINE_SPACING)
