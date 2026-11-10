@@ -8,6 +8,7 @@ Internal changes (tests, build, documentation) don't go here: the GitHub release
 ## Unreleased
 
 - When the only cards left have sound or just a picture in the question, the main screen says so instead of "Bravo".
+- Without AnkiDroid, the app now offers to install it; with its API turned off, it opens AnkiDroid to turn it on.
 - On cards whose answer repeated the question, only the answer is shown now.
 - Decks added in AnkiDroid, and their due counts, now show up when you come back to the app, without restarting it.
 
