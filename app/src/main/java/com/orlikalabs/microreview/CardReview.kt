@@ -65,6 +65,7 @@ object CardReview {
             } else {
                 Log.i(TAG, "time taken: $timeTaken ms")
                 anki.reviewCard(localState.noteID, localState.cardOrd, ease, timeTaken)
+                ReviewStats.onReviewed(context)
             }
 
             // After the session's last review, the next card is stored now but its notification waits for the next lock.

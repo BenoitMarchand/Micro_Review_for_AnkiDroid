@@ -7,6 +7,7 @@ Internal changes (tests, build, documentation) don't go here: the GitHub release
 
 ## Unreleased
 
+- The main screen shows how many cards you reviewed today, and for how many days in a row.
 - On cards whose answer repeated the question, only the answer is shown now.
 - Decks added in AnkiDroid, and their due counts, now show up when you come back to the app, without restarting it.
 
