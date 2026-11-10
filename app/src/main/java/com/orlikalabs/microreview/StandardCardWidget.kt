@@ -346,7 +346,7 @@ class StandardCardWidget : AppWidgetProvider() {
                 CardWidgetContent.Kind.QUESTION, CardWidgetContent.Kind.ANSWER -> {
                     views.setTextViewText(R.id.widgetDeck, card!!.deckName)
                     val question = CardText.clean(card.q)
-                    val answer = CardText.clean(card.a).takeIf { kind == CardWidgetContent.Kind.ANSWER }
+                    val answer = CardText.withoutQuestion(question, CardText.clean(card.a)).takeIf { kind == CardWidgetContent.Kind.ANSWER }
                     scrolls = needsScroll(context, listOfNotNull(question, answer), widthDp, heightDp)
                     if (scrolls) {
                         showScrollingCard(context, views, appWidgetId, question, answer, style)

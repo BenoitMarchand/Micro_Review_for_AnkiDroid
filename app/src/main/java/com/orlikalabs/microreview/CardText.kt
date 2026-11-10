@@ -27,10 +27,43 @@ object CardText {
     @JvmStatic
     fun clean(html: String?): String {
         if (html.isNullOrEmpty()) return ""
-        val withoutTags = stripMediaTags(stripHiddenHtml(html))
+        // Android's converter ignores <hr>: without a line break, the texts on each side would run together.
+        val withoutTags = stripMediaTags(stripHiddenHtml(html)).replace(HORIZONTAL_RULE, "<br>")
         return HtmlCompat.fromHtml(withoutTags, HtmlCompat.FROM_HTML_MODE_LEGACY).toString()
             .replace(OBJECT_REPLACEMENT, ' ') // images
             .replace(EXTRA_BLANK_LINES, "\n\n")
             .trim()
+    }
+
+    private val HORIZONTAL_RULE = Regex("""<hr\b[^>]*>""", RegexOption.IGNORE_CASE)
+
+    /** The answer to show for a card: [clean]ed, without the question repeated at its start ([withoutQuestion]). */
+    @JvmStatic
+    fun answer(questionHtml: String?, answerHtml: String?): String = withoutQuestion(clean(questionHtml), clean(answerHtml))
+
+    /**
+     * Removes the question from the start of the answer. AnkiDroid's "pure" answer is the back side after
+     * `<hr id=answer>`; when a note type's back template doesn't have that marker (`{{FrontSide}}<br>{{Back}}`,
+     * a plain `<hr>`...), it is the whole back side, which starts with the question.
+     *
+     * Whitespace differences are ignored, and the question must be followed by whitespace, so a word that merely
+     * starts like the question is kept. The answer is returned unchanged when nothing would be left (back side
+     * identical to the front) or when it doesn't start with the question (cloze cards: "[...]" vs. the answer).
+     */
+    fun withoutQuestion(question: String, answer: String): String {
+        if (question.isBlank()) return answer
+        var q = 0
+        var a = 0
+        while (q < question.length) {
+            when {
+                question[q].isWhitespace() -> q++
+                a >= answer.length -> return answer
+                answer[a].isWhitespace() -> a++
+                question[q] == answer[a] -> { q++; a++ }
+                else -> return answer
+            }
+        }
+        if (a < answer.length && !answer[a].isWhitespace()) return answer
+        return answer.substring(a).trim().ifEmpty { answer }
     }
 }

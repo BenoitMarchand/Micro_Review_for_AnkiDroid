@@ -8,6 +8,7 @@ Internal changes (tests, build, documentation) don't go here: the GitHub release
 ## Unreleased
 
 - Without AnkiDroid, the app now offers to install it; with its API turned off, it opens AnkiDroid to turn it on.
+- On cards whose answer repeated the question, only the answer is shown now.
 - Decks added in AnkiDroid, and their due counts, now show up when you come back to the app, without restarting it.
 
 ## 0.5.0 (2026-11-03)
