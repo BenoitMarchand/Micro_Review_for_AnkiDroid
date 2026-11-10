@@ -7,6 +7,7 @@ Internal changes (tests, build, documentation) don't go here: the GitHub release
 
 ## Unreleased
 
+- New setting "Cards per hour": at most 3, 5, 10 or 20 cards an hour; after that, the next card says when it comes.
 - Empty lines are removed from cards, so long cards take less room.
 - Settings are tidier: folded sections showing their current values, all lock screen options together, and a search bar.
 - Cards keep their bold, italics and underlining, and the cloze answer is shown in bold.

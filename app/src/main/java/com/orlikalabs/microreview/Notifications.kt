@@ -214,11 +214,21 @@ class Notifications {
 
     /**
      * After this session's review: the same notification, updated in place, shows the answered [card] with
-     * "Next card at your next unlock" instead of the answer buttons, then disappears by itself.
+     * "Next card at your next unlock" instead of the answer buttons, then disappears by itself. With [until], the
+     * hourly limit ([ReviewLimit]) holds the next card back: "Next card at 14:35", until then.
      */
-    fun showNextCardMessage(context: Context, card: CardInfo, deckName: String) {
+    fun showNextCardMessage(context: Context, card: CardInfo, deckName: String, until: Long? = null) {
         createChannel(context)
-        val message = context.getString(R.string.next_card_at_next_unlock)
+        val message = if (until == null) {
+            context.getString(R.string.next_card_at_next_unlock)
+        } else {
+            context.getString(R.string.next_card_at_time, ReviewLimit.formatTime(context, until))
+        }
+        val timeout = if (until == null) {
+            NEXT_CARD_MESSAGE_TIMEOUT_MS
+        } else {
+            (until - System.currentTimeMillis()).coerceAtLeast(NEXT_CARD_MESSAGE_TIMEOUT_MS)
+        }
         val title = context.getString(R.string.notification_title_deck, deckName)
         val collapsedView = RemoteViews(context.packageName, R.layout.notification_collapsed)
         collapsedView.setTextViewText(R.id.textViewCollapsedHeader, message)
@@ -226,6 +236,7 @@ class Notifications {
 
         val expandedView = cardView(context, card, revealed = true, pageActions = null)
         expandedView.setViewVisibility(R.id.textViewNextCard, View.VISIBLE)
+        expandedView.setTextViewText(R.id.textViewNextCard, message)
         expandedView.setViewVisibility(R.id.buttonShowAnswer, View.GONE)
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -236,7 +247,7 @@ class Notifications {
             .setCustomBigContentView(expandedView)
             .setContentTitle(title)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setTimeoutAfter(NEXT_CARD_MESSAGE_TIMEOUT_MS)
+            .setTimeoutAfter(timeout)
             .setSilent(true)
             .setOnlyAlertOnce(true)
             .build()

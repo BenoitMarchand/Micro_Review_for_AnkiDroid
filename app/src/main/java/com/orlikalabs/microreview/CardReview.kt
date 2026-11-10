@@ -66,13 +66,20 @@ object CardReview {
                 Log.i(TAG, "time taken: $timeTaken ms")
                 anki.reviewCard(localState.noteID, localState.cardOrd, ease, timeTaken)
                 ReviewStats.onReviewed(context)
+                // Before the next card is stored: it may be held back by the hourly limit.
+                ReviewLimit.onAnswered(context)
             }
 
             // After the session's last review, the next card is stored now but its notification waits for the next lock.
             CardStateController.showNextCard(context, silent = true)
-            // Only while locked: unlocked (answered from a scheduled review), the lock screen notification stays hidden.
             // Not with no card left: no next card to announce. The stored card stays if AnkiDroid couldn't be read.
-            if (after == LockSession.AfterAnswer.WAIT_FOR_NEXT_LOCK && LockSession.isLocked(context) && anki.storedState?.hasCard() == true) {
+            val hasNext = anki.storedState?.hasCard() == true
+            val heldUntil = ReviewLimit.heldUntil(context)
+            if (heldUntil != null && hasNext && LockSession.mayShowMessageNow(context)) {
+                // The hourly limit is stricter than the next unlock: "Next card at 14:35", until then.
+                Notifications.create().showNextCardMessage(context, localState.toCardInfo(), localState.deckName, heldUntil)
+            } else if (after == LockSession.AfterAnswer.WAIT_FOR_NEXT_LOCK && LockSession.isLocked(context) && hasNext) {
+                // Only while locked: unlocked (answered from a scheduled review), the lock screen notification stays hidden.
                 // The answered card stays in the notification, with the message in place of its buttons.
                 Notifications.create().showNextCardMessage(context, localState.toCardInfo(), localState.deckName)
             }

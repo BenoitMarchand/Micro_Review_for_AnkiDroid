@@ -204,6 +204,7 @@ private fun SettingsScreen(
     val wallpaperActive = lockScreenMode == LockScreenState.Mode.LIVE
     val liveLockOnly = remember { WallpaperSetup.liveLockOnly(context) }
     var cardsPerUnlock by remember { mutableIntStateOf(ReviewSettings.cardsPerUnlock(context)) }
+    var cardsPerHour by remember { mutableIntStateOf(ReviewSettings.cardsPerHour(context)) }
     var rotateOnUnlock by remember { mutableStateOf(ReviewSettings.rotateOnUnlock(context)) }
     var reviewMode by remember { mutableStateOf(ReviewSettings.reviewMode(context)) }
     var scheduledEnabled by remember { mutableStateOf(ScheduledReviewSettings.isEnabled(context)) }
@@ -257,13 +258,19 @@ private fun SettingsScreen(
         pluralStringResource(R.plurals.cards_per_unlock_short, cardsPerUnlock, cardsPerUnlock)
     }
 
+    val cardsPerHourLabel = if (cardsPerHour == ReviewLimit.OFF) {
+        null
+    } else {
+        pluralStringResource(R.plurals.cards_per_hour_short, cardsPerHour, cardsPerHour)
+    }
+
     val lockScreen = SettingsSection(
         icon = Icons.Filled.Lock,
         title = stringResource(R.string.settings_lock_screen),
         summary = if (lockScreenMode == LockScreenState.Mode.NONE) {
             stringResource(R.string.wallpaper_status_missing)
         } else {
-            listOf(reviewModeLabel, cardsPerUnlockLabel, showsLabel).joinToString(" · ")
+            listOfNotNull(reviewModeLabel, cardsPerUnlockLabel, cardsPerHourLabel, showsLabel).joinToString(" · ")
         },
         summaryIsWarning = lockScreenMode == LockScreenState.Mode.NONE,
         items = listOf(
@@ -323,6 +330,15 @@ private fun SettingsScreen(
                 listOf(stringResource(R.string.cards_per_unlock), stringResource(R.string.cards_per_unlock_no_limit)),
             ) {
                 CardsPerUnlock(cardsPerUnlock, onChange = { cardsPerUnlock = it }, wallpaperActive = wallpaperActive)
+            },
+            SettingItem(
+                listOf(
+                    stringResource(R.string.cards_per_hour),
+                    stringResource(R.string.cards_per_hour_off),
+                    pluralStringResource(R.plurals.cards_per_hour_limit, 5, 5),
+                ),
+            ) {
+                CardsPerHour(cardsPerHour, onChange = { cardsPerHour = it })
             },
             SettingItem(
                 listOf(stringResource(R.string.rotate_on_unlock), stringResource(R.string.rotation_size, CardRotation.MIN_SIZE)),
@@ -912,6 +928,32 @@ private fun CardsPerUnlock(cards: Int, onChange: (Int) -> Unit, wallpaperActive:
                 color = MaterialTheme.colorScheme.error,
             )
         }
+    }
+}
+
+/** "Cards per hour" ([ReviewLimit]): a slider through [ReviewLimit.CHOICES], off first. */
+@Composable
+private fun CardsPerHour(cards: Int, onChange: (Int) -> Unit) {
+    val context = LocalContext.current
+    val choices = ReviewLimit.CHOICES
+    Column {
+        Text(stringResource(R.string.cards_per_hour), style = MaterialTheme.typography.bodyLarge)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            if (cards == ReviewLimit.OFF) {
+                stringResource(R.string.cards_per_hour_off)
+            } else {
+                pluralStringResource(R.plurals.cards_per_hour_limit, cards, cards)
+            },
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Slider(
+            value = choices.indexOf(cards).coerceAtLeast(0).toFloat(),
+            onValueChange = { position -> onChange(choices[position.roundToInt().coerceIn(choices.indices)]) },
+            onValueChangeFinished = { ReviewSettings.setCardsPerHour(context, cards) },
+            valueRange = 0f..choices.lastIndex.toFloat(),
+            steps = choices.size - 2,
+        )
     }
 }
 

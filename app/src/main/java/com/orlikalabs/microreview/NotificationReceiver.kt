@@ -8,7 +8,7 @@ import kotlin.concurrent.thread
 
 /**
  * Handles the swipe of the card notification, the notification buttons ("Show answer", "Previous", "Next" and the answer buttons, of the lock screen notification and of
- * the scheduled review) and the scheduled review alarm.
+ * the scheduled review), the scheduled review alarm and the end of the hourly limit ([ReviewLimit]).
  */
 class NotificationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
@@ -25,6 +25,7 @@ class NotificationReceiver : BroadcastReceiver() {
                 { c -> LockSession.onDismissed(c, card) }
             }
             ScheduledReview.ACTION_ALARM -> ScheduledReview::onAlarm
+            ReviewLimit.ACTION_RELEASE -> ReviewLimit::onRelease
             ScheduledReview.ACTION_START -> ScheduledReview::start
             ScheduledReview.ACTION_SHOW_ANSWER -> ScheduledReview::revealAnswer
             ScheduledReview.ACTION_PREVIOUS_PAGE -> ScheduledReview::showPreviousPage

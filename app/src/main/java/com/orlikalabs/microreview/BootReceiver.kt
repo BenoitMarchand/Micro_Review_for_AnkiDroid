@@ -8,7 +8,7 @@ import kotlin.concurrent.thread
 
 /**
  * Notifications and alarms don't survive a reboot: shows the current card again, checked against AnkiDroid, and
- * sets the scheduled review alarm again. After an app update or a clock or time zone change, only the alarm.
+ * sets the scheduled review and hourly limit alarms again. After an app update or a clock or time zone change, only the alarm.
  */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -17,6 +17,7 @@ class BootReceiver : BroadcastReceiver() {
             Intent.ACTION_MY_PACKAGE_REPLACED, Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED -> {
                 Log.i("Notifications", "${intent.action}: setting the scheduled review alarm again")
                 ScheduledReview.schedule(context.applicationContext)
+                ReviewLimit.scheduleRelease(context.applicationContext)
                 return
             }
             else -> return
@@ -27,6 +28,7 @@ class BootReceiver : BroadcastReceiver() {
         thread {
             try {
                 ScheduledReview.schedule(appContext)
+                ReviewLimit.scheduleRelease(appContext)
                 CardStateController.syncWithAnkiDroid(appContext)
             } catch (e: Exception) {
                 Log.e("Notifications", "could not restore the notification after boot", e)
