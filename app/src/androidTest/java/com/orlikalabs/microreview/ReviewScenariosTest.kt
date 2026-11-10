@@ -116,6 +116,34 @@ class ReviewScenariosTest {
     }
 
     @Test
+    fun swipedAwayNotification_staysAwayUntilTheNextCard() {
+        anki.deck(
+            1, "Spanish",
+            FakeAnkiDataSource.Card(10, question = "Hola"),
+            FakeAnkiDataSource.Card(11, question = "Adiós"),
+        )
+        select(1)
+        start()
+        val posted = cardNotification()
+        assertEquals("can be swiped away", 0, posted.flags and Notification.FLAG_ONGOING_EVENT)
+
+        // A swipe: the system removes the notification and sends its delete intent.
+        notificationManager().cancel(Notifications.NOTIFICATION_ID)
+        posted.deleteIntent.send()
+        waitUntil { LockSession.isDismissed(context, displayedCard()) }
+
+        // The sync (lock, hourly worker, app opened) doesn't bring it back.
+        assertEquals(CardSync.Action.NONE, CardStateController.syncWithAnkiDroid(context))
+        assertTrue(notificationManager().activeNotifications.none { it.id == Notifications.NOTIFICATION_ID })
+
+        // Reviewed in AnkiDroid meanwhile: the next card comes with its notification.
+        anki.reviewCard(10, 0, 3, 0)
+        assertEquals(CardSync.Action.SHOW_NEXT, CardStateController.syncWithAnkiDroid(context))
+        assertEquals(11L, storedState().noteID)
+        cardNotification()
+    }
+
+    @Test
     fun onlyCardHasSoundInTheQuestion_isSkipped() {
         anki.deck(1, "Spanish", FakeAnkiDataSource.Card(10, question = "Hola [sound:hola.mp3]"))
         select(1)
@@ -814,6 +842,15 @@ class ReviewScenariosTest {
             notification != null
         }
         return notification!!.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
+    }
+
+    private fun cardNotification(): Notification {
+        var notification: Notification? = null
+        waitUntil {
+            notification = notificationManager().activeNotifications.firstOrNull { it.id == Notifications.NOTIFICATION_ID }?.notification
+            notification != null
+        }
+        return notification!!
     }
 
     private fun waitUntil(timeoutMs: Long = 5_000, condition: () -> Boolean) {
