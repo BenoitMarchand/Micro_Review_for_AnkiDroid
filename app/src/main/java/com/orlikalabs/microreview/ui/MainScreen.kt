@@ -84,7 +84,8 @@ sealed interface ScreenState {
 
 sealed interface CurrentCard {
     data object NotStarted : CurrentCard
-    data object NoneDue : CurrentCard
+    /** No card to show. [skipped]: due cards AnkiDroid still counts, which the app can't show (sound, picture). */
+    data class NoneDue(val skipped: Int = 0) : CurrentCard
     data class Showing(val question: String, val deckName: String) : CurrentCard
 }
 
@@ -228,7 +229,7 @@ private fun ReadyContent(
         if (setup.wallpaperActive) {
             item(key = "wallpaper-configured") { WallpaperConfigured() }
         }
-        item(key = "current") { CurrentCardCard(currentCard, onlyWhileLocked = setup.liveWallpaper, reviewStats) }
+        item(key = "current") { CurrentCardCard(currentCard, onlyWhileLocked = setup.liveWallpaper, reviewStats, actions.onOpenAnkiDroid) }
 
         item(key = "order-header") {
             SectionHeader(stringResource(R.string.review_order), stringResource(R.string.review_order_explanation))
@@ -317,7 +318,12 @@ private fun SectionHeader(title: String, subtitle: String?) {
 }
 
 @Composable
-private fun CurrentCardCard(currentCard: CurrentCard, onlyWhileLocked: Boolean, reviewStats: ReviewStats.Summary) {
+private fun CurrentCardCard(
+    currentCard: CurrentCard,
+    onlyWhileLocked: Boolean,
+    reviewStats: ReviewStats.Summary,
+    onOpenAnkiDroid: () -> Unit,
+) {
     ElevatedCard(
         modifier = Modifier.fillMaxWidth().animateContentSize(),
         colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
@@ -365,7 +371,9 @@ private fun CurrentCardCard(currentCard: CurrentCard, onlyWhileLocked: Boolean, 
                         }
                     }
                 }
-                CurrentCard.NoneDue -> Row(verticalAlignment = Alignment.CenterVertically) {
+                is CurrentCard.NoneDue -> if (currentCard.skipped > 0) {
+                    SkippedCards(currentCard.skipped, onOpenAnkiDroid)
+                } else Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Filled.CheckCircle,
                         contentDescription = null,
@@ -401,6 +409,28 @@ private fun CurrentCardCard(currentCard: CurrentCard, onlyWhileLocked: Boolean, 
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                 )
             }
+        }
+    }
+}
+
+/** "Bravo" isn't true: due cards are left in AnkiDroid, but none can be shown here. */
+@Composable
+private fun SkippedCards(count: Int, onOpenAnkiDroid: () -> Unit) {
+    Column {
+        Text(
+            stringResource(R.string.skipped_cards_title),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            LocalContext.current.resources.getQuantityString(R.plurals.skipped_cards, count, count),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+        )
+        Spacer(Modifier.height(4.dp))
+        TextButton(onClick = onOpenAnkiDroid, contentPadding = PaddingValues(horizontal = 0.dp)) {
+            Text(stringResource(R.string.open_ankidroid))
         }
     }
 }

@@ -188,13 +188,15 @@ class MainActivity : ComponentActivity() {
             DeckItem(id, name, newCount = count?.get(2), learnCount = count?.get(0), reviewCount = count?.get(1))
         }.sortedBy { it.name.lowercase() }
         val selected = DeckSelection.load(this).filter { it in names }
-        return LoadedData(decks, selected, readCurrentCard(anki))
+        // "Bravo" while AnkiDroid still counts due cards: they were all skipped (sound or picture-only question).
+        val skipped = { CardWidgetContent.dueTotal(selected, names, counts.mapValues { (_, c) -> c[0] + c[1] + c[2] }) ?: 0 }
+        return LoadedData(decks, selected, readCurrentCard(anki, skipped))
     }
 
-    private fun readCurrentCard(anki: AnkiDroidHelper): CurrentCard {
+    private fun readCurrentCard(anki: AnkiDroidHelper, skippedDueCards: () -> Int): CurrentCard {
         val state = anki.storedState ?: return CurrentCard.NotStarted
         if (!state.hasCard()) {
-            return CurrentCard.NoneDue
+            return CurrentCard.NoneDue(skipped = skippedDueCards())
         }
         val question = CardText.clean(state.question)
         // A card stored by an older version may have nothing left to show (e.g. a sound-only question).
