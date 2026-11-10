@@ -21,7 +21,8 @@ class CardSyncTest {
         visible: Boolean = true,
         hidden: Boolean = false,
         inRotation: Boolean = false,
-    ) = CardSync.decide(decksSelected, started, displayed, displayedQuestion, next, nextQuestion, visible, hidden, inRotation)
+        dismissed: Boolean = false,
+    ) = CardSync.decide(decksSelected, started, displayed, displayedQuestion, next, nextQuestion, visible, hidden, inRotation, dismissed)
 
     @Test
     fun keepsARotatedCardThatIsNotAnkiDroidsNext() {
@@ -90,8 +91,20 @@ class CardSyncTest {
     }
 
     @Test
+    fun swipedAwayNotificationIsNotPostedAgain() {
+        assertEquals(Action.NONE, decide(visible = false, dismissed = true))
+    }
+
+    @Test
+    fun swipedAwayCardIsStillReplacedByTheNextOne() {
+        // Reviewed in AnkiDroid meanwhile: the next card is shown, with its notification.
+        assertEquals(Action.SHOW_NEXT, decide(visible = false, dismissed = true, next = cardB, nextQuestion = "Question B"))
+        assertEquals(Action.SHOW_DONE, decide(visible = false, dismissed = true, next = null, nextQuestion = ""))
+    }
+
+    @Test
     fun missingNotificationIsPostedAgain() {
-        // After a reboot, or swiped away.
+        // After a reboot.
         assertEquals(Action.REPOST, decide(visible = false))
     }
 

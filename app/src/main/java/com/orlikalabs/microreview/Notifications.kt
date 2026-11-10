@@ -27,6 +27,9 @@ class Notifications {
         const val ACTION_PREVIOUS_PAGE = "ACTION_PREVIOUS_PAGE"
         const val ACTION_NEXT_PAGE = "ACTION_NEXT_PAGE"
 
+        /** The user swiped the card notification away (its delete intent, with the card: [CardReview.forCard]). */
+        const val ACTION_DISMISSED = "ACTION_DISMISSED"
+
         /** The answer buttons: followed by the button number, 1 to 4 ([AnswerButtons]), with the card ([CardReview.forCard]). */
         const val ACTION_BUTTON_PREFIX = "ACTION_BUTTON_"
 
@@ -175,7 +178,8 @@ class Notifications {
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setSilent(isSilent)
                 .setOnlyAlertOnce(!replace)
-                .setOngoing(true)
+                // Can be swiped away like other notifications; the sync then leaves it until the next lock or card.
+                .setDeleteIntent(createIntent(context, ACTION_DISMISSED, CardSync.CardKey(card.noteID, card.cardOrd)))
         } else {
             val title = context.getString(R.string.notification_title)
             collapsedView.setTextViewText(R.id.textViewCollapsedHeader, context.getString(R.string.all_cards_done))
