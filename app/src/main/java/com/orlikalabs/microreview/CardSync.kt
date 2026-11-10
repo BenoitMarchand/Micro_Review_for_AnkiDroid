@@ -18,7 +18,7 @@ object CardSync {
         /** No card left: show "Bravo". */
         SHOW_DONE,
 
-        /** Same card, but its notification is gone (reboot, swiped away): post it again. */
+        /** Same card, but its notification is gone (reboot, removed by the system): post it again. */
         REPOST,
 
         /** No deck selected any more: remove the card and its notification. */
@@ -40,6 +40,8 @@ object CardSync {
      * @param notificationHidden whether it was removed on purpose at unlock (posted again at the next lock)
      * @param displayedInRotation whether the displayed card, unchanged, is in the rotation set of "Change the card
      * at every unlock": it is then kept, even though it isn't AnkiDroid's next card
+     * @param notificationDismissed whether the user swiped the displayed card's notification away: it isn't posted
+     * again (until the next lock, or another card)
      */
     fun decide(
         decksSelected: Boolean,
@@ -51,12 +53,13 @@ object CardSync {
         notificationVisible: Boolean,
         notificationHidden: Boolean,
         displayedInRotation: Boolean = false,
+        notificationDismissed: Boolean = false,
     ): Action = when {
         !decksSelected -> if (started) Action.STOP else Action.NONE
         !started -> if (next == null) Action.SHOW_DONE else Action.SHOW_NEXT
         next == null -> if (displayed != null) Action.SHOW_DONE else Action.NONE
         (next != displayed || nextQuestion != displayedQuestion) && !displayedInRotation -> Action.SHOW_NEXT
-        !notificationVisible && !notificationHidden -> Action.REPOST
+        !notificationVisible && !notificationHidden && !notificationDismissed -> Action.REPOST
         else -> Action.NONE
     }
 

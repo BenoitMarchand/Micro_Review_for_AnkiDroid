@@ -23,6 +23,7 @@ object LockSession {
     const val KEY_WAITING = "waiting_for_next_lock"
     private const val KEY_ANSWERS = "answers"
     private const val KEY_VISIBLE_SINCE = "card_visible_since"
+    private const val KEY_DISMISSED = "dismissed_card"
 
     enum class AfterAnswer {
         /** Show the next card right away. */
@@ -73,6 +74,8 @@ object LockSession {
             .putBoolean(KEY_WAITING, false)
             .putInt(KEY_ANSWERS, 0)
             .putLong(KEY_VISIBLE_SINCE, 0)
+            // A card swiped away during the last session comes back in this one.
+            .remove(KEY_DISMISSED)
             .apply()
         return prefs.getBoolean(KEY_HIDDEN, false)
     }
@@ -153,6 +156,18 @@ object LockSession {
     fun markHidden(context: Context) {
         prefs(context).edit().putBoolean(KEY_HIDDEN, true).apply()
     }
+
+    /**
+     * The user swiped the notification of [card] away: it isn't posted again by the sync until the next lock (with
+     * the card wallpaper, [onLocked]) or until another card is displayed.
+     */
+    fun onDismissed(context: Context, card: CardSync.CardKey) {
+        prefs(context).edit().putString(KEY_DISMISSED, "${card.noteId}/${card.ord}").apply()
+    }
+
+    /** Whether the notification of [card] was swiped away ([onDismissed]). */
+    fun isDismissed(context: Context, card: CardSync.CardKey): Boolean =
+        prefs(context).getString(KEY_DISMISSED, null) == "${card.noteId}/${card.ord}"
 
     /** A card notification was posted: it is visible again. */
     fun onNotificationPosted(context: Context) {
