@@ -37,6 +37,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -71,7 +72,10 @@ import com.orlikalabs.microreview.ui.theme.ReviewCountColor
 
 sealed interface ScreenState {
     data object Loading : ScreenState
-    data object ApiUnavailable : ScreenState
+    /** AnkiDroid isn't installed. */
+    data object AnkiDroidMissing : ScreenState
+    /** AnkiDroid is installed, but its API is disabled. */
+    data object ApiDisabled : ScreenState
     data object PermissionMissing : ScreenState
     data object LoadFailed : ScreenState
     data object Ready : ScreenState
@@ -101,6 +105,8 @@ class MainScreenActions(
     val onMoveDeck: (deckId: Long, offset: Int) -> Unit,
     val onGrantPermission: () -> Unit,
     val onRetry: () -> Unit,
+    val onGetAnkiDroid: () -> Unit,
+    val onOpenAnkiDroid: () -> Unit,
     val onOpenWallpaperSettings: () -> Unit,
     val onSetLockScreenPicture: () -> Unit,
     val onOpenSettings: () -> Unit,
@@ -138,12 +144,23 @@ fun MainScreen(
             ScreenState.Loading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-            ScreenState.ApiUnavailable -> MessageScreen(
+            ScreenState.AnkiDroidMissing -> MessageScreen(
                 padding = padding,
-                title = stringResource(R.string.error_api_unavailable_title),
-                message = stringResource(R.string.error_api_unavailable),
-                buttonLabel = stringResource(R.string.retry),
-                onClick = actions.onRetry,
+                title = stringResource(R.string.error_ankidroid_missing_title),
+                message = stringResource(R.string.error_ankidroid_missing),
+                buttonLabel = stringResource(R.string.get_ankidroid),
+                onClick = actions.onGetAnkiDroid,
+                secondaryLabel = stringResource(R.string.retry),
+                onSecondary = actions.onRetry,
+            )
+            ScreenState.ApiDisabled -> MessageScreen(
+                padding = padding,
+                title = stringResource(R.string.error_api_disabled_title),
+                message = stringResource(R.string.error_api_disabled),
+                buttonLabel = stringResource(R.string.open_ankidroid),
+                onClick = actions.onOpenAnkiDroid,
+                secondaryLabel = stringResource(R.string.retry),
+                onSecondary = actions.onRetry,
             )
             ScreenState.PermissionMissing -> MessageScreen(
                 padding = padding,
@@ -595,7 +612,15 @@ private fun DeckCounts(deck: DeckItem) {
 }
 
 @Composable
-private fun MessageScreen(padding: PaddingValues, title: String, message: String, buttonLabel: String, onClick: () -> Unit) {
+private fun MessageScreen(
+    padding: PaddingValues,
+    title: String,
+    message: String,
+    buttonLabel: String,
+    onClick: () -> Unit,
+    secondaryLabel: String? = null,
+    onSecondary: () -> Unit = {},
+) {
     Column(
         Modifier.fillMaxSize().padding(padding).padding(32.dp),
         verticalArrangement = Arrangement.Center,
@@ -613,5 +638,9 @@ private fun MessageScreen(padding: PaddingValues, title: String, message: String
         )
         Spacer(Modifier.height(24.dp))
         Button(onClick = onClick) { Text(buttonLabel) }
+        if (secondaryLabel != null) {
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = onSecondary) { Text(secondaryLabel) }
+        }
     }
 }

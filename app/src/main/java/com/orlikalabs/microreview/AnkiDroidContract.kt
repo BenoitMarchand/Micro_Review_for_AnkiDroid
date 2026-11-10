@@ -31,6 +31,16 @@ object AnkiDroidContract {
         return provider?.packageName
     }
 
+    /** AnkiDroid's package, for its Play Store page and its launch intent (declared in `<queries>`). */
+    const val PACKAGE = "com.ichi2.anki"
+
+    /**
+     * Whether AnkiDroid is installed. When it is but [ankiDroidPackageName] finds no provider, its API is disabled:
+     * AnkiDroid turns its provider off with the "Enable AnkiDroid API" setting.
+     */
+    fun isAnkiDroidInstalled(context: Context): Boolean =
+        context.packageManager.getLaunchIntentForPackage(PACKAGE) != null
+
     /** Notes. A card's content: `notes/<note id>/cards/<card ord>`, with the [Card] columns. */
     object Note {
         val CONTENT_URI: Uri = Uri.withAppendedPath(AUTHORITY_URI, "notes")

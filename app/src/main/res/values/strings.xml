@@ -63,8 +63,12 @@
     <string name="app_version">%1$s · version %2$s</string>
 
     <!-- Errors -->
-    <string name="error_api_unavailable_title">AnkiDroid not available</string>
-    <string name="error_api_unavailable">Either AnkiDroid is not installed, or its API is disabled. Enable it in AnkiDroid: Settings › Advanced › Enable AnkiDroid API.</string>
+    <string name="error_ankidroid_missing_title">AnkiDroid is needed</string>
+    <string name="error_ankidroid_missing">Micro Review shows the cards of AnkiDroid, the free flashcard app, which isn\'t installed. Install it, add or sync your decks, then come back here.</string>
+    <string name="get_ankidroid">Get AnkiDroid</string>
+    <string name="error_api_disabled_title">Enable the AnkiDroid API</string>
+    <string name="error_api_disabled">AnkiDroid is installed, but it doesn\'t share its cards with other apps yet. In AnkiDroid, open Settings › Advanced and turn on Enable AnkiDroid API, then come back here. If your decks still don\'t show, close AnkiDroid from the recent apps and open it again.</string>
+    <string name="open_ankidroid">Open AnkiDroid</string>
     <string name="error_permission_title">Permission needed</string>
     <string name="error_permission">Micro Review for AnkiDroid needs access to your AnkiDroid cards to show them.</string>
     <string name="error_load_failed_title">Can\'t read your decks</string>
