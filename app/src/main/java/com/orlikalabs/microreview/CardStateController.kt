@@ -94,7 +94,8 @@ object CardStateController {
             next = next?.let { CardSync.CardKey(it.noteID, it.cardOrd) },
             nextQuestion = next?.q.orEmpty(),
             notificationVisible = isNotificationVisible(context),
-            notificationHidden = LockSession.isHidden(context),
+            // Held back and still not allowed: the next lock or the end of the hourly limit posts it.
+            notificationHidden = LockSession.isHidden(context) && !LockSession.mayPostNow(context),
             displayedInRotation = displayed != null && rotation.orEmpty().any {
                 it.noteID == displayed.noteID && it.cardOrd == displayed.cardOrd && it.q == displayed.question
             },
@@ -143,6 +144,20 @@ object CardStateController {
             } catch (e: Exception) {
                 Log.e(TAG, "card rotation failed", e)
             }
+        }
+    }
+
+    /**
+     * The hourly limit ([ReviewLimit]) no longer holds the card back: checks it with AnkiDroid (an hour may have
+     * passed), then posts it if it may be posted now, replacing "Next card at 14:35". Otherwise the next lock does.
+     */
+    fun postHeldCard(context: Context) {
+        synchronized(lock) {
+            syncWithAnkiDroid(context)
+            val state = AnkiDroidHelper(context).storedState?.takeIf { it.hasCard() } ?: return
+            val card = CardSync.CardKey(state.noteID, state.cardOrd)
+            if (!LockSession.mayPostNow(context) || LockSession.isDismissed(context, card)) return
+            if (post(context, state.toCardInfo(), state.deckName, silent = true)) ReviewTimer.onCardShown(context, card)
         }
     }
 
@@ -220,8 +235,10 @@ object CardStateController {
 
     private fun cancelNotification(context: Context) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        // Keep the short "next card at your next unlock" message: it times out by itself.
-        if (!LockSession.isWaitingForNextLock(context)) manager.cancel(Notifications.NOTIFICATION_ID)
+        // Keep the "next card at your next unlock" or "Next card at 14:35" message: it times out by itself.
+        if (!LockSession.isWaitingForNextLock(context) && ReviewLimit.heldUntil(context) == null) {
+            manager.cancel(Notifications.NOTIFICATION_ID)
+        }
     }
 
     private fun isNotificationVisible(context: Context): Boolean {

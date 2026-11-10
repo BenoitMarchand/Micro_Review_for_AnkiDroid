@@ -106,7 +106,11 @@ object LockSession {
         val hide = shouldHideOnUnlock(started)
         val wasLocked = prefs.getBoolean(KEY_LOCKED, false)
         val openAfterUnlock = ReviewSettings.opensAfterUnlock(context)
-        val openReview = shouldOpenReview(openAfterUnlock, wasLocked, hasCard, prefs.getBoolean(KEY_WAITING, false))
+        val openReview = shouldOpenReview(
+            openAfterUnlock, wasLocked, hasCard,
+            // Held back by the hourly limit too: the review screen would show the held card.
+            waitingForNextLock = prefs.getBoolean(KEY_WAITING, false) || ReviewLimit.heldUntil(context, now) != null,
+        )
         val rotate = CardRotation.shouldRotate(
             // With "Open after unlock", the card is reviewed after the unlock: the review screen rotates it if
             // it is closed without an answer.
@@ -131,13 +135,24 @@ object LockSession {
         return after
     }
 
-    /** Whether the card notification may be posted now ([mayPost] with the current state). */
-    fun mayPostNow(context: Context): Boolean {
+    /**
+     * Whether the card notification may be posted now ([mayPost] with the current state), and the hourly limit
+     * ([ReviewLimit]) doesn't hold the card back.
+     */
+    fun mayPostNow(context: Context): Boolean = mayPostInSession(context) && ReviewLimit.heldUntil(context) == null
+
+    /**
+     * Whether the card notification may be visible now, regardless of the cards per unlock and per hour: where to
+     * show the answered card with "Next card at 14:35".
+     */
+    fun mayShowMessageNow(context: Context): Boolean = mayPostInSession(context, ignoreWaiting = true)
+
+    private fun mayPostInSession(context: Context, ignoreWaiting: Boolean = false): Boolean {
         val prefs = prefs(context)
         return mayPost(
             wallpaperActive = CardWallpaperService.isActive(context),
             locked = prefs.getBoolean(KEY_LOCKED, false),
-            waitingForNextLock = prefs.getBoolean(KEY_WAITING, false),
+            waitingForNextLock = !ignoreWaiting && prefs.getBoolean(KEY_WAITING, false),
             openAfterUnlock = ReviewSettings.reviewMode(context) == ReviewSettings.ReviewMode.OPEN_AFTER_UNLOCK &&
                 ReviewSettings.canOpenAfterUnlock(context),
         )
@@ -187,6 +202,7 @@ object ReviewSettings {
     private const val KEY_ROTATE_ON_UNLOCK = "rotate_on_unlock"
     private const val KEY_ROTATION_SIZE = "rotation_size"
     private const val KEY_REVIEW_MODE = "review_mode"
+    private const val KEY_CARDS_PER_HOUR = "cards_per_hour"
 
     /** "Cards per unlock": the next card always comes right away. */
     const val NO_LIMIT = 0
@@ -235,6 +251,15 @@ object ReviewSettings {
 
     fun setCardsPerUnlock(context: Context, cards: Int) {
         prefs(context).edit().putInt(KEY_CARDS_PER_UNLOCK, cards).apply()
+    }
+
+    /** "At most N cards per hour" ([ReviewLimit]): one of [ReviewLimit.CHOICES], off by default. */
+    fun cardsPerHour(context: Context): Int =
+        prefs(context).getInt(KEY_CARDS_PER_HOUR, ReviewLimit.OFF).takeIf { it in ReviewLimit.CHOICES } ?: ReviewLimit.OFF
+
+    fun setCardsPerHour(context: Context, cards: Int) {
+        prefs(context).edit().putInt(KEY_CARDS_PER_HOUR, cards).apply()
+        ReviewLimit.onSettingChanged(context)
     }
 
     /** "Change the card at every unlock": off by default. Only works with the lock screen wallpaper. */

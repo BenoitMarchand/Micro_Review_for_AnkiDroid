@@ -65,6 +65,9 @@ class ReviewActivity : ComponentActivity() {
 
         /** This session's cards were answered: the next one comes at the next unlock. */
         data object WaitingForNextUnlock : ReviewState
+
+        /** The hourly limit holds the next card back: "Next card at 14:35". */
+        data class Message(val text: String) : ReviewState
     }
 
     private var state by mutableStateOf<ReviewState>(ReviewState.Loading)
@@ -120,6 +123,7 @@ class ReviewActivity : ComponentActivity() {
         val context = applicationContext
         val stored = AnkiDroidHelper(context).storedState
         if (stored?.hasCard() == false) return ReviewState.Done
+        ReviewLimit.message(context)?.let { return ReviewState.Message(it) }
         if (LockSession.isWaitingForNextLock(context)) return ReviewState.WaitingForNextUnlock
         if (stored == null) return ReviewState.NotStarted
         val card = stored.toCardInfo()
@@ -155,7 +159,7 @@ class ReviewActivity : ComponentActivity() {
             // No card left: the review is over.
             if (state == ReviewState.Done) {
                 finish()
-            } else if (state == ReviewState.WaitingForNextUnlock) {
+            } else if (state == ReviewState.WaitingForNextUnlock || state is ReviewState.Message) {
                 // This unlock's cards are reviewed: show the message for a moment, then get out of the way.
                 delay(CLOSE_DELAY_MS)
                 finish()
@@ -204,6 +208,7 @@ private fun ReviewScreen(
                 ReviewActivity.ReviewState.Done -> Message(stringResource(R.string.all_cards_done), onClose)
                 ReviewActivity.ReviewState.NotStarted -> Message(stringResource(R.string.review_no_card), onClose)
                 ReviewActivity.ReviewState.WaitingForNextUnlock -> Message(stringResource(R.string.next_card_at_next_unlock), onClose)
+                is ReviewActivity.ReviewState.Message -> Message(state.text, onClose)
                 is ReviewActivity.ReviewState.Card -> CardReviewContent(state, onShowAnswer, onAnswer)
             }
         }

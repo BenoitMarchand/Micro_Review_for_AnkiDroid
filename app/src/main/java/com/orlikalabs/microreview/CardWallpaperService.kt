@@ -172,6 +172,11 @@ class CardWallpaperService : WallpaperService() {
             if (key == LockSession.KEY_WAITING) draw()
         }
 
+        /** The hourly limit holds the next card back, or lets it come: "Next card at 14:35" or the card. */
+        private val limitListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == ReviewLimit.KEY_HELD_UNTIL) draw()
+        }
+
         private val statePrefs: SharedPreferences
             get() = getSharedPreferences(AnkiDroidHelper.STATE_DB, Context.MODE_PRIVATE)
 
@@ -181,6 +186,7 @@ class CardWallpaperService : WallpaperService() {
             engines.add(this)
             statePrefs.registerOnSharedPreferenceChangeListener(stateListener)
             LockSession.prefs(this@CardWallpaperService).registerOnSharedPreferenceChangeListener(sessionListener)
+            ReviewLimit.prefs(this@CardWallpaperService).registerOnSharedPreferenceChangeListener(limitListener)
             WallpaperStyle.prefs(this@CardWallpaperService).registerOnSharedPreferenceChangeListener(styleListener)
             loadStyle()
             Log.i(TAG, "engine $engineId created, lockOnly=${isLockScreenOnly()}")
@@ -192,6 +198,7 @@ class CardWallpaperService : WallpaperService() {
             engines.remove(this)
             statePrefs.unregisterOnSharedPreferenceChangeListener(stateListener)
             LockSession.prefs(this@CardWallpaperService).unregisterOnSharedPreferenceChangeListener(sessionListener)
+            ReviewLimit.prefs(this@CardWallpaperService).unregisterOnSharedPreferenceChangeListener(limitListener)
             WallpaperStyle.prefs(this@CardWallpaperService).unregisterOnSharedPreferenceChangeListener(styleListener)
             super.onDestroy()
         }
@@ -279,7 +286,11 @@ class CardWallpaperService : WallpaperService() {
 
             try {
                 val content = if (isPreview || isLockScreenOnly() || showCard) {
-                    cardContent(this@CardWallpaperService, !isPreview && LockSession.isWaitingForNextLock(this@CardWallpaperService))
+                    cardContent(
+                        this@CardWallpaperService,
+                        waitingForNextLock = !isPreview && LockSession.isWaitingForNextLock(this@CardWallpaperService),
+                        heldBack = !isPreview,
+                    )
                 } else {
                     null
                 }
@@ -324,12 +335,17 @@ class CardWallpaperService : WallpaperService() {
         private fun isOurs(context: Context, info: WallpaperInfo): Boolean =
             info.packageName == context.packageName && info.serviceName == CardWallpaperService::class.java.name
 
-        /** What the lock screen shows: the displayed card, or a message when there is none. */
-        fun cardContent(context: Context, waitingForNextLock: Boolean): CardContent {
+        /**
+         * What the lock screen shows: the displayed card, or a message when there is none. [heldBack]: whether to
+         * show "Next card at 14:35" while the hourly limit ([ReviewLimit]) holds the card back.
+         */
+        fun cardContent(context: Context, waitingForNextLock: Boolean, heldBack: Boolean = true): CardContent {
             val state = AnkiDroidHelper(context).storedState
                 ?: return CardContent(context.getString(R.string.wallpaper_not_started))
             if (!state.hasCard()) return CardContent(context.getString(R.string.all_cards_done))
             // This session's card was answered: the next one comes at the next lock.
+            // The hourly limit is the stricter: its time is shown first.
+            if (heldBack) ReviewLimit.message(context)?.let { return CardContent(it) }
             if (waitingForNextLock) return CardContent(context.getString(R.string.next_card_at_next_unlock))
             // A card stored by an older version may have nothing left to show (e.g. a sound-only question).
             val question = CardText.styled(state.question)

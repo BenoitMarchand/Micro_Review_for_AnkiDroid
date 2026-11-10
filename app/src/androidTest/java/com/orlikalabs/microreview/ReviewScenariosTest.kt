@@ -57,7 +57,8 @@ class ReviewScenariosTest {
         listOf(AnkiDroidHelper.STATE_DB, "com.ankidroid.companion.lock_session", "com.ankidroid.companion.card_review",
             "com.ankidroid.companion.review_settings", "com.ankidroid.companion.review_timer",
             "com.ankidroid.companion.scheduled_review", "com.ankidroid.companion.scheduled_review_settings",
-            "com.ankidroid.companion.card_widget", "com.ankidroid.companion.review_stats").forEach {
+            "com.ankidroid.companion.card_widget", "com.ankidroid.companion.review_stats",
+            "com.ankidroid.companion.review_limit").forEach {
             context.getSharedPreferences(it, Context.MODE_PRIVATE).edit().clear().commit()
         }
         notificationManager().cancel(Notifications.NOTIFICATION_ID)
@@ -227,6 +228,61 @@ class ReviewScenariosTest {
         SystemClock.sleep(500)
 
         assertEquals(ReviewStats.Summary(reviewsToday = 1, streakDays = 1), ReviewStats.summary(context))
+    }
+
+    @Test
+    fun hourlyLimit_holdsTheNextCardBack_untilTheOldestAnswerIsAnHourOld() {
+        anki.deck(1, "Spanish", *Array(5) { FakeAnkiDataSource.Card(10L + it, question = "Card $it") })
+        select(1)
+        ReviewSettings.setCardsPerHour(context, 3)
+        start()
+
+        for (note in 10L..12L) {
+            pressAnswer("ACTION_BUTTON_3")
+            waitUntil { storedState().noteID == note + 1 }
+        }
+
+        // The 4th card is stored but held back: the answered card stays, with the time the next one comes.
+        assertEquals(3, anki.answers.size)
+        val held = ReviewLimit.heldUntil(context)!!
+        val message = context.getString(R.string.next_card_at_time, ReviewLimit.formatTime(context, held))
+        waitUntil { isVisible(R.id.textViewNextCard) && text(R.id.textViewNextCard) == message }
+        assertEquals(message, CardWallpaperService.cardContent(context, waitingForNextLock = false).text.toString())
+        // The sync (lock, hourly worker, app opened) doesn't post it either.
+        assertEquals(CardSync.Action.NONE, CardStateController.syncWithAnkiDroid(context))
+        assertTrue(isVisible(R.id.textViewNextCard))
+
+        // An hour later (the answers made older), the alarm posts the held card.
+        val prefs = ReviewLimit.prefs(context)
+        val times = prefs.getString("answer_times", null)!!.split(',').map { it.toLong() - ReviewLimit.HOUR_MS }
+        prefs.edit().putString("answer_times", times.joinToString(",")).commit()
+        ReviewLimit.onRelease(context)
+
+        waitUntil { !isVisible(R.id.textViewNextCard) && isVisible(R.id.buttonShowAnswer) }
+        assertEquals(13L, storedState().noteID)
+        assertEquals(null, ReviewLimit.heldUntil(context))
+    }
+
+    @Test
+    fun hourlyLimit_onlyCountsAnswers_notSwipedCards() {
+        anki.deck(1, "Spanish", *Array(3) { FakeAnkiDataSource.Card(10L + it, question = "Card $it") })
+        select(1)
+        ReviewSettings.setCardsPerHour(context, 3)
+        start()
+
+        // Swiped away: not an answer.
+        val posted = cardNotification()
+        notificationManager().cancel(Notifications.NOTIFICATION_ID)
+        posted.deleteIntent.send()
+        waitUntil { LockSession.isDismissed(context, displayedCard()) }
+
+        for (note in 10L..11L) {
+            pressAnswer("ACTION_BUTTON_3")
+            waitUntil { storedState().noteID == note + 1 }
+        }
+        // Two answers out of three: the third card comes right away.
+        assertEquals(null, ReviewLimit.heldUntil(context))
+        waitUntil { isVisible(R.id.buttonShowAnswer) }
     }
 
     @Test
