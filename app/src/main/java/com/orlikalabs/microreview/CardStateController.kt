@@ -51,7 +51,7 @@ object CardStateController {
     /**
      * Brings the displayed card in line with AnkiDroid: shows the actual next card if the displayed one was
      * reviewed, edited or removed in AnkiDroid (or the deck order changed), "Bravo" if no card is left, and posts
-     * the notification again if it disappeared (reboot, swiped away). Reviewing starts when the first deck is
+     * the notification again if it disappeared (reboot), unless the user swiped it away. Reviewing starts when the first deck is
      * selected (the first card comes with an alert) and stops when no deck is selected any more.
      *
      * @param alertOnNewCards whether to alert (sound) when a card shows up after "Bravo"
@@ -98,6 +98,8 @@ object CardStateController {
             displayedInRotation = displayed != null && rotation.orEmpty().any {
                 it.noteID == displayed.noteID && it.cardOrd == displayed.cardOrd && it.q == displayed.question
             },
+            notificationDismissed = displayed != null &&
+                LockSession.isDismissed(context, CardSync.CardKey(displayed.noteID, displayed.cardOrd)),
         )
         Log.i(TAG, "sync with AnkiDroid: $action")
         when (action) {

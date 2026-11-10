@@ -66,6 +66,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.orlikalabs.microreview.R
+import com.orlikalabs.microreview.ReviewStats
 import com.orlikalabs.microreview.ui.theme.LearnCountColor
 import com.orlikalabs.microreview.ui.theme.NewCountColor
 import com.orlikalabs.microreview.ui.theme.ReviewCountColor
@@ -125,6 +126,7 @@ fun MainScreen(
     liveLockOnly: Boolean,
     setup: SetupStatus,
     actions: MainScreenActions,
+    reviewStats: ReviewStats.Summary = ReviewStats.Summary(0, 0),
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     Scaffold(
@@ -177,7 +179,7 @@ fun MainScreen(
                 buttonLabel = stringResource(R.string.retry),
                 onClick = actions.onRetry,
             )
-            ScreenState.Ready -> ReadyContent(padding, decks, selectedDeckIds, currentCard, liveLockOnly, setup, actions)
+            ScreenState.Ready -> ReadyContent(padding, decks, selectedDeckIds, currentCard, liveLockOnly, setup, actions, reviewStats)
         }
     }
 }
@@ -191,6 +193,7 @@ private fun ReadyContent(
     liveLockOnly: Boolean,
     setup: SetupStatus,
     actions: MainScreenActions,
+    reviewStats: ReviewStats.Summary,
 ) {
     var showWallpaperInstructions by rememberSaveable { mutableStateOf(false) }
     if (showWallpaperInstructions) {
@@ -226,7 +229,7 @@ private fun ReadyContent(
         if (setup.wallpaperActive) {
             item(key = "wallpaper-configured") { WallpaperConfigured() }
         }
-        item(key = "current") { CurrentCardCard(currentCard, onlyWhileLocked = setup.liveWallpaper, actions.onOpenAnkiDroid) }
+        item(key = "current") { CurrentCardCard(currentCard, onlyWhileLocked = setup.liveWallpaper, reviewStats, actions.onOpenAnkiDroid) }
 
         item(key = "order-header") {
             SectionHeader(stringResource(R.string.review_order), stringResource(R.string.review_order_explanation))
@@ -315,7 +318,12 @@ private fun SectionHeader(title: String, subtitle: String?) {
 }
 
 @Composable
-private fun CurrentCardCard(currentCard: CurrentCard, onlyWhileLocked: Boolean, onOpenAnkiDroid: () -> Unit) {
+private fun CurrentCardCard(
+    currentCard: CurrentCard,
+    onlyWhileLocked: Boolean,
+    reviewStats: ReviewStats.Summary,
+    onOpenAnkiDroid: () -> Unit,
+) {
     ElevatedCard(
         modifier = Modifier.fillMaxWidth().animateContentSize(),
         colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
@@ -393,6 +401,14 @@ private fun CurrentCardCard(currentCard: CurrentCard, onlyWhileLocked: Boolean, 
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
+            reviewStatsText(reviewStats)?.let {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                )
+            }
         }
     }
 }
@@ -416,6 +432,21 @@ private fun SkippedCards(count: Int, onOpenAnkiDroid: () -> Unit) {
         TextButton(onClick = onOpenAnkiDroid, contentPadding = PaddingValues(horizontal = 0.dp)) {
             Text(stringResource(R.string.open_ankidroid))
         }
+    }
+}
+
+/** "12 reviews today · 3 days in a row", or a reminder that yesterday's streak can go on; null with nothing to say. */
+@Composable
+private fun reviewStatsText(stats: ReviewStats.Summary): String? {
+    val resources = LocalContext.current.resources
+    val streak = resources.getQuantityString(R.plurals.review_streak_days, stats.streakDays, stats.streakDays)
+    return when {
+        stats.reviewsToday > 0 -> {
+            val today = resources.getQuantityString(R.plurals.reviews_today, stats.reviewsToday, stats.reviewsToday)
+            if (stats.streakDays >= 2) stringResource(R.string.reviews_today_and_streak, today, streak) else today
+        }
+        stats.streakDays >= 2 -> stringResource(R.string.review_streak_keep_going, streak)
+        else -> null
     }
 }
 

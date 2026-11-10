@@ -46,6 +46,7 @@ class MainActivity : ComponentActivity() {
     private val selectedDeckIds = mutableStateListOf<Long>()
     private var currentCard by mutableStateOf<CurrentCard>(CurrentCard.NotStarted)
     private var setupStatus by mutableStateOf(SetupStatus())
+    private var reviewStats by mutableStateOf(ReviewStats.Summary(0, 0))
 
     private val permissionsLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
@@ -89,6 +90,7 @@ class MainActivity : ComponentActivity() {
                     currentCard = currentCard,
                     liveLockOnly = WallpaperSetup.liveLockOnly(this),
                     setup = setupStatus,
+                    reviewStats = reviewStats,
                     actions = actions,
                 )
             }
@@ -120,6 +122,7 @@ class MainActivity : ComponentActivity() {
 
     private fun refresh() {
         setupStatus = readSetupStatus()
+        reviewStats = ReviewStats.summary(this)
         if (!AnkiDroidHelper.isApiAvailable(this)) {
             screenState = if (AnkiDroidContract.isAnkiDroidInstalled(this)) ScreenState.ApiDisabled else ScreenState.AnkiDroidMissing
             return

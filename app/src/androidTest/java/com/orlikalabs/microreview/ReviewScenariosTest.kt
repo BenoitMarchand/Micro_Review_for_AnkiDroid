@@ -57,7 +57,7 @@ class ReviewScenariosTest {
         listOf(AnkiDroidHelper.STATE_DB, "com.ankidroid.companion.lock_session", "com.ankidroid.companion.card_review",
             "com.ankidroid.companion.review_settings", "com.ankidroid.companion.review_timer",
             "com.ankidroid.companion.scheduled_review", "com.ankidroid.companion.scheduled_review_settings",
-            "com.ankidroid.companion.card_widget").forEach {
+            "com.ankidroid.companion.card_widget", "com.ankidroid.companion.review_stats").forEach {
             context.getSharedPreferences(it, Context.MODE_PRIVATE).edit().clear().commit()
         }
         notificationManager().cancel(Notifications.NOTIFICATION_ID)
@@ -113,6 +113,34 @@ class ReviewScenariosTest {
 
         assertEquals(20L, storedState().noteID)
         assertEquals("Anki • German", notificationTitle())
+    }
+
+    @Test
+    fun swipedAwayNotification_staysAwayUntilTheNextCard() {
+        anki.deck(
+            1, "Spanish",
+            FakeAnkiDataSource.Card(10, question = "Hola"),
+            FakeAnkiDataSource.Card(11, question = "Adiós"),
+        )
+        select(1)
+        start()
+        val posted = cardNotification()
+        assertEquals("can be swiped away", 0, posted.flags and Notification.FLAG_ONGOING_EVENT)
+
+        // A swipe: the system removes the notification and sends its delete intent.
+        notificationManager().cancel(Notifications.NOTIFICATION_ID)
+        posted.deleteIntent.send()
+        waitUntil { LockSession.isDismissed(context, displayedCard()) }
+
+        // The sync (lock, hourly worker, app opened) doesn't bring it back.
+        assertEquals(CardSync.Action.NONE, CardStateController.syncWithAnkiDroid(context))
+        assertTrue(notificationManager().activeNotifications.none { it.id == Notifications.NOTIFICATION_ID })
+
+        // Reviewed in AnkiDroid meanwhile: the next card comes with its notification.
+        anki.reviewCard(10, 0, 3, 0)
+        assertEquals(CardSync.Action.SHOW_NEXT, CardStateController.syncWithAnkiDroid(context))
+        assertEquals(11L, storedState().noteID)
+        cardNotification()
     }
 
     @Test
@@ -182,6 +210,23 @@ class ReviewScenariosTest {
 
         assertEquals(listOf(FakeAnkiDataSource.Answer(10, 0, ease = 3)), anki.answers)
         assertEquals("Anki • Spanish", notificationTitle())
+    }
+
+    @Test
+    fun answers_areCountedInTodaysReviews_once() {
+        anki.deck(1, "Spanish", FakeAnkiDataSource.Card(10, question = "Hola"), FakeAnkiDataSource.Card(11, question = "Adiós"))
+        select(1)
+        start()
+        assertEquals(0, ReviewStats.summary(context).reviewsToday)
+
+        // A double tap: the second answer is ignored, and not counted.
+        val card = displayedCard()
+        pressAnswer("ACTION_BUTTON_3", card)
+        pressAnswer("ACTION_BUTTON_3", card)
+        waitUntil { anki.answers.size == 1 && storedState().noteID == 11L }
+        SystemClock.sleep(500)
+
+        assertEquals(ReviewStats.Summary(reviewsToday = 1, streakDays = 1), ReviewStats.summary(context))
     }
 
     @Test
@@ -814,6 +859,15 @@ class ReviewScenariosTest {
             notification != null
         }
         return notification!!.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
+    }
+
+    private fun cardNotification(): Notification {
+        var notification: Notification? = null
+        waitUntil {
+            notification = notificationManager().activeNotifications.firstOrNull { it.id == Notifications.NOTIFICATION_ID }?.notification
+            notification != null
+        }
+        return notification!!
     }
 
     private fun waitUntil(timeoutMs: Long = 5_000, condition: () -> Boolean) {
