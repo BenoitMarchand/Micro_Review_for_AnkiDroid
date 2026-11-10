@@ -7,6 +7,7 @@ Internal changes (tests, build, documentation) don't go here: the GitHub release
 
 ## Unreleased
 
+- Cards keep their bold, italics and underlining, and the cloze answer is shown in bold.
 - Without AnkiDroid, the app now offers to install it; with its API turned off, it opens AnkiDroid to turn it on.
 - On cards whose answer repeated the question, only the answer is shown now.
 - Decks added in AnkiDroid, and their due counts, now show up when you come back to the app, without restarting it.

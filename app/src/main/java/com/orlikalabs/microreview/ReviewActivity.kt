@@ -41,6 +41,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
+import com.orlikalabs.microreview.ui.toAnnotatedString
 import com.orlikalabs.microreview.ui.theme.AnkiNotificationsTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -224,7 +225,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.CardReviewContent(
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         Text(
-            CardText.clean(state.card.q),
+            CardText.styled(state.card.q).toAnnotatedString(),
             Modifier.fillMaxWidth(),
             style = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center,
@@ -232,7 +233,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.CardReviewContent(
         if (state.revealed) {
             HorizontalDivider()
             Text(
-                CardText.answer(state.card.q, state.card.a),
+                CardText.styledAnswer(state.card.q, state.card.a).toAnnotatedString(),
                 Modifier.fillMaxWidth(),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,

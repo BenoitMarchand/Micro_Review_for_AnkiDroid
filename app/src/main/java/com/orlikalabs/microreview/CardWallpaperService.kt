@@ -332,9 +332,9 @@ class CardWallpaperService : WallpaperService() {
             // This session's card was answered: the next one comes at the next lock.
             if (waitingForNextLock) return CardContent(context.getString(R.string.next_card_at_next_unlock))
             // A card stored by an older version may have nothing left to show (e.g. a sound-only question).
-            val question = CardText.clean(state.question)
+            val question = CardText.styled(state.question)
                 .ifEmpty { return CardContent(context.getString(R.string.wallpaper_not_started)) }
-            return CardContent(question, state.deckName.replace("::", " › "), CardText.withoutQuestion(question, CardText.clean(state.answer)))
+            return CardContent(question, state.deckName.replace("::", " › "), CardText.styledAnswer(state.question, state.answer))
         }
     }
 }

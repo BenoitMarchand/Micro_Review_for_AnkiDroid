@@ -1,5 +1,10 @@
 package com.orlikalabs.microreview
 
+import android.graphics.Typeface
+import android.text.Spanned
+import android.text.style.StyleSpan
+import android.text.style.SubscriptSpan
+import android.text.style.UnderlineSpan
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -32,6 +37,39 @@ class CardTextDeviceTest {
                 "Paris is the capital of <span class=cloze>France</span>",
             ),
         )
+    }
+
+    @Test
+    fun styled_keepsEmphasis_dropsColorsAndSizes() {
+        val text = CardText.styled("<b>bold</b> <i>it</i> <u>u</u> H<sub>2</sub>O <font color=red>red</font> <big>big</big>") as Spanned
+        assertEquals("bold it u H2O red big", text.toString())
+        val spans = text.getSpans(0, text.length, Any::class.java)
+        assertEquals(
+            setOf(StyleSpan::class.java, UnderlineSpan::class.java, SubscriptSpan::class.java),
+            spans.map { it.javaClass }.toSet(),
+        )
+        val bold = spans.filterIsInstance<StyleSpan>().single { it.style == Typeface.BOLD }
+        assertEquals("bold", text.subSequence(text.getSpanStart(bold), text.getSpanEnd(bold)).toString())
+    }
+
+    @Test
+    fun styled_clozeAnswerIsBold() {
+        val text = CardText.styled("Paris is the capital of <span class=cloze>France</span>") as Spanned
+        val bold = text.getSpans(0, text.length, StyleSpan::class.java).single()
+        assertEquals("France", text.subSequence(text.getSpanStart(bold), text.getSpanEnd(bold)).toString())
+    }
+
+    @Test
+    fun styledAnswer_keepsStylesAfterRemovingTheQuestion() {
+        val text = CardText.styledAnswer("Capital of France?", "Capital of France?<br><b>Paris</b>") as Spanned
+        assertEquals("Paris", text.toString())
+        assertEquals(1, text.getSpans(0, text.length, StyleSpan::class.java).size)
+    }
+
+    @Test
+    fun styled_imagesAndBlankLines_likeClean() {
+        assertEquals("a\n\nb", CardText.clean("a<br><br><br><br>b"))
+        assertEquals("x", CardText.clean("<img src=a.png> x "))
     }
 
     @Test

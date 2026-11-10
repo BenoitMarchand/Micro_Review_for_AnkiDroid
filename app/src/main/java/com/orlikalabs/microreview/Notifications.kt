@@ -59,14 +59,14 @@ class Notifications {
             val paint = textPaint(context)
             val panelWidthDp = minOf(context.resources.configuration.screenWidthDp, MAX_PANEL_WIDTH_DP)
             val width = ((panelWidthDp - TEMPLATE_MARGINS_DP) * density * TEXT_WIDTH_MARGIN).toInt().coerceAtLeast(1)
-            fun layout(text: String) = StaticLayout.Builder.obtain(text, 0, text.length, paint, width).build()
+            fun layout(text: CharSequence) = StaticLayout.Builder.obtain(text, 0, text.length, paint, width).build()
             val room = CardPages.Room(
                 height = TEXT_ROOM_DP * density,
                 pageButtons = PAGE_BUTTONS_DP * density,
                 textPadding = TEXT_PADDING_DP * density,
                 lineHeight = lineHeight(paint),
             )
-            return CardPages.pages(CardText.clean(card.q), if (revealed) CardText.answer(card.q, card.a) else null, room) { text ->
+            return CardPages.pages(CardText.styled(card.q), if (revealed) CardText.styledAnswer(card.q, card.a) else null, room) { text ->
                 val laidOut = layout(text)
                 if (text.isEmpty()) emptyList() else (0 until laidOut.lineCount).map { laidOut.getLineEnd(it) }
             }
@@ -306,10 +306,10 @@ class Notifications {
         val pages = cardPages(context, card, revealed)
         val index = CardReview.currentPage(context, card, pages)
         val page = pages[index]
-        view.setTextViewText(R.id.textViewExpandedHeader, page.question.orEmpty())
+        view.setTextViewText(R.id.textViewExpandedHeader, page.question ?: "")
         view.setInt(R.id.textViewExpandedHeader, "setMinHeight", textHeight(context, page.questionLines))
         view.setViewVisibility(R.id.textViewExpandedHeader, if (page.question != null) View.VISIBLE else View.GONE)
-        view.setTextViewText(R.id.textViewContent, page.answer.orEmpty())
+        view.setTextViewText(R.id.textViewContent, page.answer ?: "")
         view.setInt(R.id.textViewContent, "setMinHeight", textHeight(context, page.answerLines))
         view.setViewVisibility(R.id.textViewContent, if (page.answer != null) View.VISIBLE else View.GONE)
         view.setViewVisibility(R.id.answerDivider, if (page.question != null && page.answer != null) View.VISIBLE else View.GONE)
