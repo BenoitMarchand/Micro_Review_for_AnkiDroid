@@ -232,7 +232,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.CardReviewContent(
         if (state.revealed) {
             HorizontalDivider()
             Text(
-                CardText.clean(state.card.a),
+                CardText.answer(state.card.q, state.card.a),
                 Modifier.fillMaxWidth(),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,

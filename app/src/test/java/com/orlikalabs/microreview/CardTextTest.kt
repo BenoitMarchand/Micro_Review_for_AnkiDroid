@@ -49,6 +49,47 @@ class CardTextTest {
     }
 
     @Test
+    fun removesQuestionRepeatedAtStartOfAnswer() {
+        // {{FrontSide}}<br>{{Back}}, or a plain <hr> (turned into a line break by clean()).
+        assertEquals("Paris", CardText.withoutQuestion("Capital of France?", "Capital of France?\nParis"))
+        assertEquals("Paris", CardText.withoutQuestion("Capital of France?", "Capital of France?\n\nParis"))
+        assertEquals("Paris", CardText.withoutQuestion("Capital of France?", "Capital of France? Paris"))
+    }
+
+    @Test
+    fun ignoresWhitespaceDifferencesInRepeatedQuestion() {
+        assertEquals("B", CardText.withoutQuestion("Line one\nline two", "Line one line  two\nB"))
+        assertEquals("B", CardText.withoutQuestion("Line one line two", "Line one\nline two\n\nB"))
+    }
+
+    @Test
+    fun keepsAnswerIdenticalToQuestion() {
+        assertEquals("Same text", CardText.withoutQuestion("Same text", "Same text"))
+    }
+
+    @Test
+    fun keepsClozeAnswer() {
+        assertEquals(
+            "Paris is the capital of France",
+            CardText.withoutQuestion("Paris is the capital of [...]", "Paris is the capital of France"),
+        )
+    }
+
+    @Test
+    fun keepsAnswerThatOnlyStartsLikeTheQuestion() {
+        assertEquals("apple", CardText.withoutQuestion("a", "apple"))
+        assertEquals("Yes, because", CardText.withoutQuestion("Yes", "Yes, because"))
+        assertEquals("Paris", CardText.withoutQuestion("Capital of France?", "Paris"))
+        assertEquals("Capital", CardText.withoutQuestion("Capital of France?", "Capital"))
+    }
+
+    @Test
+    fun keepsAnswerWhenQuestionIsBlank() {
+        assertEquals("Paris", CardText.withoutQuestion("", "Paris"))
+        assertEquals("", CardText.withoutQuestion("Q", ""))
+    }
+
+    @Test
     fun keepsTextThatOnlyMentionsScripts() {
         assertEquals("<p>scripts and styles</p>", CardText.stripHiddenHtml("<p>scripts and styles</p>"))
         assertEquals("<scripture>Genesis</scripture>", CardText.stripHiddenHtml("<scripture>Genesis</scripture>"))
