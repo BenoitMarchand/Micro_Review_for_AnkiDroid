@@ -98,7 +98,21 @@
 
     <!-- Wallpaper settings -->
     <string name="settings_title">Settings</string>
-    <string name="settings_behavior">Behavior</string>
+    <string name="settings_search">Search settings</string>
+    <string name="settings_search_clear">Clear search</string>
+    <string name="settings_search_no_match">No setting matches \"%1$s\".</string>
+    <string name="settings_summary_off">Off</string>
+    <string name="settings_lock_screen">Lock screen</string>
+    <string name="lock_screen_shows">What the lock screen shows</string>
+    <plurals name="cards_per_unlock_short">
+        <item quantity="one">%1$d card per unlock</item>
+        <item quantity="other">%1$d cards per unlock</item>
+    </plurals>
+    <string name="cards_per_unlock_short_no_limit">No card limit</string>
+    <!-- "On · 08:00, 12:30" -->
+    <string name="scheduled_review_summary_on">On · %1$s</string>
+    <string name="scheduled_review_summary_no_time">On, but no time is set</string>
+    <string name="style_summary">Lock screen and widget: background, picture, text</string>
     <string name="settings_help">Help</string>
     <string name="report_issue">Report an issue</string>
     <string name="report_issue_summary">Opens a new issue on GitHub, with your phone model, Android version and app versions already filled in. You can check and edit everything before sending it.</string>
@@ -108,7 +122,6 @@
     <string name="licenses_summary">The license of this app and of the libraries it uses.</string>
     <string name="licenses_libraries">Libraries</string>
     <string name="close">Close</string>
-    <string name="wallpaper_content">Lock screen content</string>
     <string name="wallpaper_content_question">Question</string>
     <string name="wallpaper_content_question_answer">Question and answer</string>
     <string name="wallpaper_content_question_summary">The lock screen shows the question. Tap Show answer in the notification to see the answer.</string>

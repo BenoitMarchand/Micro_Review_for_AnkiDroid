@@ -8,6 +8,7 @@ Internal changes (tests, build, documentation) don't go here: the GitHub release
 ## Unreleased
 
 - Empty lines are removed from cards, so long cards take less room.
+- Settings are tidier: folded sections showing their current values, all lock screen options together, and a search bar.
 - Cards keep their bold, italics and underlining, and the cloze answer is shown in bold.
 - When the only cards left have sound or just a picture in the question, the main screen says so instead of "Bravo".
 - The main screen shows how many cards you reviewed today, and for how many days in a row.

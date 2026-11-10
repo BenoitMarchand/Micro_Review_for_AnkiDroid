@@ -53,7 +53,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -65,6 +65,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -94,7 +95,11 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -169,6 +174,19 @@ private val BACKGROUND_COLORS = listOf(
 )
 private val TEXT_COLORS = listOf(0xFFFFFFFF.toInt(), 0xFF000000.toInt(), 0xFFFFE082.toInt(), 0xFF80DEEA.toInt())
 
+/** One setting of a [SettingsSection]: the texts the search bar looks in ([SettingsSearch]), and its controls. */
+private class SettingItem(val searchTexts: List<String>, val content: @Composable ColumnScope.() -> Unit)
+
+/** A folding group of settings, with the summary of its values shown while it is folded. */
+private class SettingsSection(
+    val icon: ImageVector,
+    val title: String,
+    val summary: String,
+    val items: List<SettingItem>,
+    /** The summary is a problem to fix (the card wallpaper isn't set...). */
+    val summaryIsWarning: Boolean = false,
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsScreen(
@@ -181,15 +199,20 @@ private fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
     // The lock session (one card per unlock, rotation, open after unlock) needs the live wallpaper's screen events.
     val wallpaperActive = lockScreenMode == LockScreenState.Mode.LIVE
     val liveLockOnly = remember { WallpaperSetup.liveLockOnly(context) }
+    var cardsPerUnlock by remember { mutableIntStateOf(ReviewSettings.cardsPerUnlock(context)) }
     var rotateOnUnlock by remember { mutableStateOf(ReviewSettings.rotateOnUnlock(context)) }
     var reviewMode by remember { mutableStateOf(ReviewSettings.reviewMode(context)) }
+    var scheduledEnabled by remember { mutableStateOf(ScheduledReviewSettings.isEnabled(context)) }
+    var scheduledTimes by remember { mutableStateOf(ScheduledReviewSettings.times(context)) }
     var styles by remember { mutableStateOf(WallpaperStyle.Target.entries.associateWith { WallpaperStyle.load(context, it) }) }
     var styleTarget by rememberSaveable { mutableStateOf(WallpaperStyle.Target.LOCK_SCREEN) }
     val lockStyle = styles.getValue(WallpaperStyle.Target.LOCK_SCREEN)
     val sample = remember { previewContent(context) }
+    var query by rememberSaveable { mutableStateOf("") }
     var showWallpaperInstructions by rememberSaveable { mutableStateOf(false) }
     if (showWallpaperInstructions) {
         WallpaperInstructionsDialog(
@@ -221,28 +244,89 @@ private fun SettingsScreen(
         if (target == WallpaperStyle.Target.LOCK_SCREEN) LockScreenPicture.update(context)
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-                    }
-                },
-            )
+    val reviewModeLabel = stringResource(
+        if (reviewMode == ReviewSettings.ReviewMode.OPEN_AFTER_UNLOCK) R.string.review_mode_open_after_unlock
+        else R.string.review_mode_notification
+    )
+    val showsLabel = stringResource(
+        if (lockStyle.showAnswer) R.string.wallpaper_content_question_answer else R.string.wallpaper_content_question
+    )
+    val cardsPerUnlockLabel = if (cardsPerUnlock == ReviewSettings.NO_LIMIT) {
+        stringResource(R.string.cards_per_unlock_short_no_limit)
+    } else {
+        pluralStringResource(R.plurals.cards_per_unlock_short, cardsPerUnlock, cardsPerUnlock)
+    }
+
+    val lockScreen = SettingsSection(
+        icon = Icons.Filled.Lock,
+        title = stringResource(R.string.settings_lock_screen),
+        summary = if (lockScreenMode == LockScreenState.Mode.NONE) {
+            stringResource(R.string.wallpaper_status_missing)
+        } else {
+            listOf(reviewModeLabel, cardsPerUnlockLabel, showsLabel).joinToString(" · ")
         },
-    ) { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            SettingsGroup(Icons.Filled.Refresh, stringResource(R.string.settings_behavior)) {
-                CardsPerUnlock(wallpaperActive)
+        summaryIsWarning = lockScreenMode == LockScreenState.Mode.NONE,
+        items = listOf(
+            SettingItem(
+                listOf(
+                    stringResource(R.string.set_lock_wallpaper),
+                    stringResource(R.string.wallpaper_status_missing),
+                    stringResource(R.string.lock_picture_set_button),
+                    stringResource(R.string.live_wallpaper_instead),
+                ),
+            ) {
+                WallpaperStatus(
+                    mode = lockScreenMode,
+                    liveLockOnly = liveLockOnly,
+                    liveOnHome = liveOnHome,
+                    onSetWallpaper = { showWallpaperInstructions = true },
+                    onOpenWallpaperSettings = { WallpaperSetup.openSettings(context) },
+                    onStopPicture = {
+                        LockScreenPicture.disable(context)
+                        onLockScreenChanged()
+                    },
+                )
+            },
+            SettingItem(
+                listOf(
+                    stringResource(R.string.review_mode),
+                    stringResource(R.string.review_mode_notification),
+                    stringResource(R.string.review_mode_open_after_unlock),
+                    stringResource(R.string.review_mode_allow_overlay),
+                ),
+            ) {
+                ReviewModeSection(
+                    reviewMode = reviewMode,
+                    onChange = {
+                        ReviewSettings.setReviewMode(context, it)
+                        reviewMode = it
+                    },
+                    wallpaperActive = wallpaperActive,
+                    canOpenAfterUnlock = canOpenAfterUnlock,
+                    onAllowOpenAfterUnlock = onAllowOpenAfterUnlock,
+                )
+            },
+            SettingItem(
+                listOf(
+                    stringResource(R.string.lock_screen_shows),
+                    stringResource(R.string.wallpaper_content_question_answer),
+                    stringResource(R.string.show_answer),
+                ),
+            ) {
+                LockScreenContentSection(
+                    showAnswer = lockStyle.showAnswer,
+                    onChange = { update(WallpaperStyle.Target.LOCK_SCREEN, lockStyle.copy(showAnswer = it)) },
+                    reviewMode = reviewMode,
+                )
+            },
+            SettingItem(
+                listOf(stringResource(R.string.cards_per_unlock), stringResource(R.string.cards_per_unlock_no_limit)),
+            ) {
+                CardsPerUnlock(cardsPerUnlock, onChange = { cardsPerUnlock = it }, wallpaperActive = wallpaperActive)
+            },
+            SettingItem(
+                listOf(stringResource(R.string.rotate_on_unlock), stringResource(R.string.rotation_size, CardRotation.MIN_SIZE)),
+            ) {
                 Column {
                     SwitchRow(
                         title = stringResource(R.string.rotate_on_unlock),
@@ -266,108 +350,56 @@ private fun SettingsScreen(
                         RotationSize()
                     }
                 }
-            }
+            },
+        ),
+    )
 
-            SettingsGroup(Icons.Filled.DateRange, stringResource(R.string.scheduled_review_settings)) {
-                ScheduledReviewSection()
-            }
-
-            SettingsGroup(Icons.Filled.Lock, stringResource(R.string.wallpaper_content)) {
-                WallpaperStatus(
-                    mode = lockScreenMode,
-                    liveLockOnly = liveLockOnly,
-                    liveOnHome = liveOnHome,
-                    onSetWallpaper = { showWallpaperInstructions = true },
-                    onOpenWallpaperSettings = { WallpaperSetup.openSettings(context) },
-                    onStopPicture = {
-                        LockScreenPicture.disable(context)
-                        onLockScreenChanged()
-                    },
+    val scheduled = SettingsSection(
+        icon = Icons.Filled.DateRange,
+        title = stringResource(R.string.scheduled_review_settings),
+        summary = when {
+            !scheduledEnabled -> stringResource(R.string.settings_summary_off)
+            scheduledTimes.isEmpty() -> stringResource(R.string.scheduled_review_summary_no_time)
+            else -> stringResource(R.string.scheduled_review_summary_on, scheduledTimes.joinToString(", ") { formatTime(context, it) })
+        },
+        summaryIsWarning = scheduledEnabled && scheduledTimes.isEmpty(),
+        items = listOf(
+            SettingItem(
+                listOf(
+                    stringResource(R.string.scheduled_review),
+                    stringResource(R.string.scheduled_review_add_time),
+                    stringResource(R.string.scheduled_review_prompt),
+                ),
+            ) {
+                ScheduledReviewSection(
+                    enabled = scheduledEnabled,
+                    onEnabledChange = { scheduledEnabled = it },
+                    times = scheduledTimes,
+                    onTimesChange = { scheduledTimes = it },
                 )
-                Section(stringResource(R.string.review_mode)) {
-                    val modes = ReviewSettings.ReviewMode.entries
-                    val labels = listOf(R.string.review_mode_notification, R.string.review_mode_open_after_unlock)
-                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                        modes.forEachIndexed { index, mode ->
-                            SegmentedButton(
-                                selected = reviewMode == mode,
-                                onClick = {
-                                    ReviewSettings.setReviewMode(context, mode)
-                                    reviewMode = mode
-                                },
-                                shape = SegmentedButtonDefaults.itemShape(index, modes.size),
-                            ) { Text(stringResource(labels[index])) }
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        stringResource(
-                            if (reviewMode == ReviewSettings.ReviewMode.OPEN_AFTER_UNLOCK) R.string.review_mode_open_after_unlock_summary
-                            else R.string.review_mode_notification_summary
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    if (reviewMode == ReviewSettings.ReviewMode.OPEN_AFTER_UNLOCK && !wallpaperActive) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            stringResource(R.string.review_mode_needs_wallpaper),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-                    if (reviewMode == ReviewSettings.ReviewMode.OPEN_AFTER_UNLOCK && !canOpenAfterUnlock) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            stringResource(R.string.review_mode_needs_overlay),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        FilledTonalButton(onClick = onAllowOpenAfterUnlock) {
-                            Text(stringResource(R.string.review_mode_allow_overlay))
-                        }
-                    }
-                }
-                Column {
-                    val labels = listOf(R.string.wallpaper_content_question, R.string.wallpaper_content_question_answer)
-                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                        listOf(false, true).forEachIndexed { index, showAnswer ->
-                            SegmentedButton(
-                                selected = lockStyle.showAnswer == showAnswer,
-                                onClick = { update(WallpaperStyle.Target.LOCK_SCREEN, lockStyle.copy(showAnswer = showAnswer)) },
-                                shape = SegmentedButtonDefaults.itemShape(index, labels.size),
-                            ) { Text(stringResource(labels[index])) }
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        stringResource(
-                            when {
-                                reviewMode == ReviewSettings.ReviewMode.OPEN_AFTER_UNLOCK && lockStyle.showAnswer ->
-                                    R.string.wallpaper_content_question_answer_summary_review_screen
-                                reviewMode == ReviewSettings.ReviewMode.OPEN_AFTER_UNLOCK ->
-                                    R.string.wallpaper_content_question_summary_review_screen
-                                lockStyle.showAnswer -> R.string.wallpaper_content_question_answer_summary
-                                else -> R.string.wallpaper_content_question_summary
-                            }
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    // About the notification's answer: no notification with "Open after unlock".
-                    if (reviewMode == ReviewSettings.ReviewMode.NOTIFICATION) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            stringResource(R.string.lock_screen_sensitive_tip),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
+            },
+        ),
+    )
 
-            SettingsGroup(Icons.Filled.Edit, stringResource(R.string.style_settings_title)) {
+    val style = SettingsSection(
+        icon = Icons.Filled.Edit,
+        title = stringResource(R.string.style_settings_title),
+        summary = stringResource(R.string.style_summary),
+        items = listOf(
+            SettingItem(
+                listOf(
+                    stringResource(R.string.style_target_lock_screen),
+                    stringResource(R.string.style_target_widget),
+                    stringResource(R.string.wallpaper_background),
+                    stringResource(R.string.wallpaper_choose_image),
+                    stringResource(R.string.picture_filter),
+                    stringResource(R.string.picture_filter_blur),
+                    stringResource(R.string.picture_filter_darken),
+                    stringResource(R.string.wallpaper_text_color),
+                    stringResource(R.string.wallpaper_text_size),
+                    stringResource(R.string.widget_background_see_through),
+                ),
+            ) {
                 val targets = WallpaperStyle.Target.entries
                 val labels = listOf(R.string.style_target_lock_screen, R.string.style_target_widget)
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
@@ -390,29 +422,204 @@ private fun SettingsScreen(
                         onChange = { update(target, it) },
                     )
                 }
-            }
+            },
+        ),
+    )
 
-            SettingsGroup(Icons.Filled.Info, stringResource(R.string.settings_help)) {
-                if (ReportIssue.isAvailable(context)) {
+    val helpItems = buildList {
+        if (ReportIssue.isAvailable(context)) {
+            add(
+                SettingItem(listOf(stringResource(R.string.report_issue), stringResource(R.string.report_issue_summary))) {
+                    Column {
+                        Text(
+                            stringResource(R.string.report_issue_summary),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        OutlinedButton(onClick = { ReportIssue.open(context) }) {
+                            Text(stringResource(R.string.report_issue))
+                        }
+                    }
+                },
+            )
+        }
+        add(
+            SettingItem(listOf(stringResource(R.string.licenses_title), stringResource(R.string.licenses_summary))) {
+                Column {
                     Text(
-                        stringResource(R.string.report_issue_summary),
+                        stringResource(R.string.licenses_summary),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    OutlinedButton(onClick = { ReportIssue.open(context) }) {
-                        Text(stringResource(R.string.report_issue))
+                    OutlinedButton(onClick = { showLicenses = true }) {
+                        Text(stringResource(R.string.licenses_title))
                     }
                 }
-                Text(
-                    stringResource(R.string.licenses_summary),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                OutlinedButton(onClick = { showLicenses = true }) {
-                    Text(stringResource(R.string.licenses_title))
+            },
+        )
+    }
+    val help = SettingsSection(
+        icon = Icons.Filled.Info,
+        title = stringResource(R.string.settings_help),
+        summary = helpItems.joinToString(" · ") { it.searchTexts.first() },
+        items = helpItems,
+    )
+
+    val sections = listOf(lockScreen, scheduled, style, help)
+    val visible = sections.associateWith { SettingsSearch.visibleItems(query, it.title, it.items.map(SettingItem::searchTexts)) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.settings_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                placeholder = { Text(stringResource(R.string.settings_search)) },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                trailingIcon = if (query.isNotEmpty()) {
+                    {
+                        IconButton(onClick = { query = "" }) {
+                            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.settings_search_clear))
+                        }
+                    }
+                } else {
+                    null
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(28.dp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+            )
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                sections.forEach { section ->
+                    val items = visible.getValue(section)
+                    if (items.isNotEmpty()) {
+                        key(section.title) {
+                            SettingsGroup(section, items.map { section.items[it] }, searching = query.isNotBlank())
+                        }
+                    }
                 }
+                if (visible.values.all { it.isEmpty() }) {
+                    Text(
+                        stringResource(R.string.settings_search_no_match, query.trim()),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
             }
-            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+/** "How to review": notification or "Open after unlock", with what each one needs. */
+@Composable
+private fun ReviewModeSection(
+    reviewMode: ReviewSettings.ReviewMode,
+    onChange: (ReviewSettings.ReviewMode) -> Unit,
+    wallpaperActive: Boolean,
+    canOpenAfterUnlock: Boolean,
+    onAllowOpenAfterUnlock: () -> Unit,
+) {
+    Section(stringResource(R.string.review_mode)) {
+        val modes = ReviewSettings.ReviewMode.entries
+        val labels = listOf(R.string.review_mode_notification, R.string.review_mode_open_after_unlock)
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            modes.forEachIndexed { index, mode ->
+                SegmentedButton(
+                    selected = reviewMode == mode,
+                    onClick = { onChange(mode) },
+                    shape = SegmentedButtonDefaults.itemShape(index, modes.size),
+                ) { Text(stringResource(labels[index])) }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            stringResource(
+                if (reviewMode == ReviewSettings.ReviewMode.OPEN_AFTER_UNLOCK) R.string.review_mode_open_after_unlock_summary
+                else R.string.review_mode_notification_summary
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (reviewMode == ReviewSettings.ReviewMode.OPEN_AFTER_UNLOCK && !wallpaperActive) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.review_mode_needs_wallpaper),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        if (reviewMode == ReviewSettings.ReviewMode.OPEN_AFTER_UNLOCK && !canOpenAfterUnlock) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.review_mode_needs_overlay),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+            Spacer(Modifier.height(8.dp))
+            FilledTonalButton(onClick = onAllowOpenAfterUnlock) {
+                Text(stringResource(R.string.review_mode_allow_overlay))
+            }
+        }
+    }
+}
+
+/** What the lock screen shows: the question, or the question and the answer. */
+@Composable
+private fun LockScreenContentSection(showAnswer: Boolean, onChange: (Boolean) -> Unit, reviewMode: ReviewSettings.ReviewMode) {
+    Section(stringResource(R.string.lock_screen_shows)) {
+        val labels = listOf(R.string.wallpaper_content_question, R.string.wallpaper_content_question_answer)
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            listOf(false, true).forEachIndexed { index, choice ->
+                SegmentedButton(
+                    selected = showAnswer == choice,
+                    onClick = { onChange(choice) },
+                    shape = SegmentedButtonDefaults.itemShape(index, labels.size),
+                ) { Text(stringResource(labels[index])) }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            stringResource(
+                when {
+                    reviewMode == ReviewSettings.ReviewMode.OPEN_AFTER_UNLOCK && showAnswer ->
+                        R.string.wallpaper_content_question_answer_summary_review_screen
+                    reviewMode == ReviewSettings.ReviewMode.OPEN_AFTER_UNLOCK ->
+                        R.string.wallpaper_content_question_summary_review_screen
+                    showAnswer -> R.string.wallpaper_content_question_answer_summary
+                    else -> R.string.wallpaper_content_question_summary
+                }
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        // About the notification's answer: no notification with "Open after unlock".
+        if (reviewMode == ReviewSettings.ReviewMode.NOTIFICATION) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.lock_screen_sensitive_tip),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -673,10 +880,9 @@ private fun homeWallpaperColors(context: android.content.Context): List<Color>? 
 
 /** "Cards per unlock": a slider from 1 to the maximum, with "no limit" as its last position. */
 @Composable
-private fun CardsPerUnlock(wallpaperActive: Boolean) {
+private fun CardsPerUnlock(cards: Int, onChange: (Int) -> Unit, wallpaperActive: Boolean) {
     val context = LocalContext.current
     val noLimitPosition = ReviewSettings.MAX_CARDS_PER_UNLOCK + 1
-    var cards by remember { mutableIntStateOf(ReviewSettings.cardsPerUnlock(context)) }
     val limited = cards != ReviewSettings.NO_LIMIT
     Column {
         Text(stringResource(R.string.cards_per_unlock), style = MaterialTheme.typography.bodyLarge)
@@ -692,7 +898,7 @@ private fun CardsPerUnlock(wallpaperActive: Boolean) {
         Slider(
             value = (if (limited) cards else noLimitPosition).toFloat(),
             onValueChange = { position ->
-                cards = position.roundToInt().takeIf { it != noLimitPosition } ?: ReviewSettings.NO_LIMIT
+                onChange(position.roundToInt().takeIf { it != noLimitPosition } ?: ReviewSettings.NO_LIMIT)
             },
             onValueChangeFinished = { ReviewSettings.setCardsPerUnlock(context, cards) },
             valueRange = 1f..noLimitPosition.toFloat(),
@@ -738,13 +944,16 @@ private fun RotationSize() {
  * Each change sets the next alarm again.
  */
 @Composable
-private fun ScheduledReviewSection() {
+private fun ScheduledReviewSection(
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
+    times: List<Int>,
+    onTimesChange: (List<Int>) -> Unit,
+) {
     val context = LocalContext.current
-    var enabled by remember { mutableStateOf(ScheduledReviewSettings.isEnabled(context)) }
-    var times by remember { mutableStateOf(ScheduledReviewSettings.times(context)) }
 
     fun saveTimes(newTimes: List<Int>) {
-        times = newTimes
+        onTimesChange(newTimes)
         ScheduledReviewSettings.setTimes(context, newTimes)
         ScheduledReview.schedule(context)
     }
@@ -767,7 +976,7 @@ private fun ScheduledReviewSection() {
             checked = enabled,
             onChange = {
                 ScheduledReviewSettings.setEnabled(context, it)
-                enabled = it
+                onEnabledChange(it)
                 ScheduledReview.schedule(context)
             },
         )
@@ -805,12 +1014,14 @@ private fun formatTime(context: android.content.Context, minutes: Int): String {
 }
 
 /**
- * A group of settings in its own card, under an icon and a title. Tapping the title folds or unfolds it
- * (unfolded at first; kept on rotation).
+ * A [SettingsSection] in its own card, under an icon and a title, with the summary of its values while folded.
+ * Tapping the title folds or unfolds it (folded at first; kept on rotation). While [searching], it is unfolded and
+ * shows only the matching [items].
  */
 @Composable
-private fun SettingsGroup(icon: ImageVector, title: String, content: @Composable ColumnScope.() -> Unit) {
-    var expanded by rememberSaveable(title) { mutableStateOf(true) }
+private fun SettingsGroup(section: SettingsSection, items: List<SettingItem>, searching: Boolean) {
+    var expanded by rememberSaveable(section.title) { mutableStateOf(false) }
+    val open = expanded || searching
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -818,33 +1029,45 @@ private fun SettingsGroup(icon: ImageVector, title: String, content: @Composable
         Row(
             Modifier
                 .fillMaxWidth()
-                .clickable { expanded = !expanded }
+                .clickable(enabled = !searching) { expanded = !expanded }
                 .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(36.dp)) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Icon(section.icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
             Spacer(Modifier.width(12.dp))
-            Text(
-                title,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            IconButton(onClick = { expanded = !expanded }) {
-                Icon(
-                    if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                    contentDescription = stringResource(if (expanded) R.string.collapse else R.string.expand),
+            Column(Modifier.weight(1f).padding(vertical = 4.dp)) {
+                Text(
+                    section.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.primary,
                 )
+                if (!open) {
+                    Text(
+                        section.summary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (section.summaryIsWarning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (!searching) {
+                IconButton(onClick = { expanded = !expanded }) {
+                    Icon(
+                        if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                        contentDescription = stringResource(if (expanded) R.string.collapse else R.string.expand),
+                    )
+                }
             }
         }
-        AnimatedVisibility(visible = expanded) {
+        AnimatedVisibility(visible = open) {
             Column {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(20.dp), content = content)
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    items.forEach { item -> key(item.searchTexts.first()) { item.content(this) } }
+                }
             }
         }
     }
