@@ -226,7 +226,7 @@ private fun ReadyContent(
         if (setup.wallpaperActive) {
             item(key = "wallpaper-configured") { WallpaperConfigured() }
         }
-        item(key = "current") { CurrentCardCard(currentCard, onlyWhileLocked = setup.liveWallpaper) }
+        item(key = "current") { CurrentCardCard(currentCard, onlyWhileLocked = setup.liveWallpaper, actions.onOpenAnkiDroid) }
 
         item(key = "order-header") {
             SectionHeader(stringResource(R.string.review_order), stringResource(R.string.review_order_explanation))
@@ -315,7 +315,7 @@ private fun SectionHeader(title: String, subtitle: String?) {
 }
 
 @Composable
-private fun CurrentCardCard(currentCard: CurrentCard, onlyWhileLocked: Boolean) {
+private fun CurrentCardCard(currentCard: CurrentCard, onlyWhileLocked: Boolean, onOpenAnkiDroid: () -> Unit) {
     ElevatedCard(
         modifier = Modifier.fillMaxWidth().animateContentSize(),
         colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
@@ -364,7 +364,7 @@ private fun CurrentCardCard(currentCard: CurrentCard, onlyWhileLocked: Boolean) 
                     }
                 }
                 is CurrentCard.NoneDue -> if (currentCard.skipped > 0) {
-                    SkippedCards(currentCard.skipped)
+                    SkippedCards(currentCard.skipped, onOpenAnkiDroid)
                 } else Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Filled.CheckCircle,
@@ -399,7 +399,7 @@ private fun CurrentCardCard(currentCard: CurrentCard, onlyWhileLocked: Boolean) 
 
 /** "Bravo" isn't true: due cards are left in AnkiDroid, but none can be shown here. */
 @Composable
-private fun SkippedCards(count: Int) {
+private fun SkippedCards(count: Int, onOpenAnkiDroid: () -> Unit) {
     Column {
         Text(
             stringResource(R.string.skipped_cards_title),
@@ -412,6 +412,10 @@ private fun SkippedCards(count: Int) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
         )
+        Spacer(Modifier.height(4.dp))
+        TextButton(onClick = onOpenAnkiDroid, contentPadding = PaddingValues(horizontal = 0.dp)) {
+            Text(stringResource(R.string.open_ankidroid))
+        }
     }
 }
 
