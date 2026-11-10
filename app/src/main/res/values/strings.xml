@@ -46,6 +46,12 @@
     <string name="current_card_none">Tick a deck below to start reviewing: its first card shows up in a notification.</string>
     <string name="all_cards_done">Bravo! You\'ve finished all cards in the selected decks.</string>
     <string name="all_cards_done_next">New cards will show up here when it\'s time to study.</string>
+    <!-- Instead of "Bravo" when the only due cards left can't be shown (sound, or only a picture, in the question). -->
+    <string name="skipped_cards_title">No card to show here</string>
+    <plurals name="skipped_cards">
+        <item quantity="one">%1$d due card can\'t be shown here: its question has sound or only a picture. Review it in AnkiDroid.</item>
+        <item quantity="other">%1$d due cards can\'t be shown here: their questions have sound or only a picture. Review them in AnkiDroid.</item>
+    </plurals>
     <string name="wallpaper_not_started">Select your decks in Micro Review for AnkiDroid</string>
     <string name="from_deck">From %1$s</string>
     <string name="review_order">Review order</string>

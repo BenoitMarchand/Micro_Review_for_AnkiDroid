@@ -126,6 +126,23 @@ class ReviewScenariosTest {
     }
 
     @Test
+    fun onlySoundCardsLeft_mainScreenSaysTheyAreSkipped_insteadOfBravo() {
+        anki.deck(
+            1, "Spanish",
+            FakeAnkiDataSource.Card(10, question = "Hola [sound:hola.mp3]"),
+            FakeAnkiDataSource.Card(11, question = "[sound:adios.mp3]"),
+        )
+        select(1)
+        start()
+
+        ActivityScenario.launch(MainActivity::class.java).use {
+            waitForText(context.getString(R.string.skipped_cards_title))
+            waitForText(context.resources.getQuantityString(R.plurals.skipped_cards, 2, 2))
+            assertTrue(compose.onAllNodesWithText(context.getString(R.string.all_cards_done)).fetchSemanticsNodes().isEmpty())
+        }
+    }
+
+    @Test
     fun soundCardFirst_theTextCardOfTheSameDeckIsShown() {
         anki.deck(
             1, "Spanish",

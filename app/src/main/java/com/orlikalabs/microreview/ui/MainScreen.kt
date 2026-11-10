@@ -79,7 +79,8 @@ sealed interface ScreenState {
 
 sealed interface CurrentCard {
     data object NotStarted : CurrentCard
-    data object NoneDue : CurrentCard
+    /** No card to show. [skipped]: due cards AnkiDroid still counts, which the app can't show (sound, picture). */
+    data class NoneDue(val skipped: Int = 0) : CurrentCard
     data class Showing(val question: String, val deckName: String) : CurrentCard
 }
 
@@ -345,7 +346,9 @@ private fun CurrentCardCard(currentCard: CurrentCard, onlyWhileLocked: Boolean) 
                         }
                     }
                 }
-                CurrentCard.NoneDue -> Row(verticalAlignment = Alignment.CenterVertically) {
+                is CurrentCard.NoneDue -> if (currentCard.skipped > 0) {
+                    SkippedCards(currentCard.skipped)
+                } else Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Filled.CheckCircle,
                         contentDescription = null,
@@ -374,6 +377,24 @@ private fun CurrentCardCard(currentCard: CurrentCard, onlyWhileLocked: Boolean) 
                 )
             }
         }
+    }
+}
+
+/** "Bravo" isn't true: due cards are left in AnkiDroid, but none can be shown here. */
+@Composable
+private fun SkippedCards(count: Int) {
+    Column {
+        Text(
+            stringResource(R.string.skipped_cards_title),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            LocalContext.current.resources.getQuantityString(R.plurals.skipped_cards, count, count),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+        )
     }
 }
 
