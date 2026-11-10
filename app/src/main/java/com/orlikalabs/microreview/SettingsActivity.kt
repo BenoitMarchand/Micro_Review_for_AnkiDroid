@@ -589,7 +589,7 @@ private fun previewContent(context: android.content.Context): CardContent {
     val state = AnkiDroidHelper(context).storedState
     val question = state?.takeIf { it.hasCard() }?.let { CardText.clean(it.question) }.orEmpty()
     return if (question.isNotEmpty()) {
-        CardContent(question, state!!.deckName.replace("::", " › "), CardText.clean(state.answer))
+        CardContent(question, state!!.deckName.replace("::", " › "), CardText.withoutQuestion(question, CardText.clean(state.answer)))
     } else {
         CardContent(
             context.getString(R.string.wallpaper_preview_question),

@@ -66,7 +66,7 @@ class Notifications {
                 textPadding = TEXT_PADDING_DP * density,
                 lineHeight = lineHeight(paint),
             )
-            return CardPages.pages(CardText.clean(card.q), if (revealed) CardText.clean(card.a) else null, room) { text ->
+            return CardPages.pages(CardText.clean(card.q), if (revealed) CardText.answer(card.q, card.a) else null, room) { text ->
                 val laidOut = layout(text)
                 if (text.isEmpty()) emptyList() else (0 until laidOut.lineCount).map { laidOut.getLineEnd(it) }
             }
