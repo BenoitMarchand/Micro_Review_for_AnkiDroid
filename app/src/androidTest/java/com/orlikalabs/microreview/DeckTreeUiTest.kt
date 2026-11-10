@@ -47,7 +47,7 @@ class DeckTreeUiTest {
                     currentCard = CurrentCard.NotStarted,
                     liveLockOnly = true,
                     setup = SetupStatus(),
-                    actions = MainScreenActions({}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}),
+                    actions = MainScreenActions({}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}, {}, {}),
                 )
             }
         }

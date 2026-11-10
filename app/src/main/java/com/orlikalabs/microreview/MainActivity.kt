@@ -3,6 +3,7 @@ package com.orlikalabs.microreview
 import android.Manifest
 import android.app.ActivityManager
 import android.app.NotificationManager
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -71,6 +72,8 @@ class MainActivity : ComponentActivity() {
             onMoveDeck = ::moveDeck,
             onGrantPermission = ::requestMissingPermissions,
             onRetry = ::refresh,
+            onGetAnkiDroid = ::openAnkiDroidStorePage,
+            onOpenAnkiDroid = ::openAnkiDroid,
             onOpenWallpaperSettings = { WallpaperSetup.openSettings(this) },
             onSetLockScreenPicture = { lifecycleScope.launch { if (WallpaperSetup.setPicture(this@MainActivity)) refresh() } },
             onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
@@ -118,7 +121,7 @@ class MainActivity : ComponentActivity() {
     private fun refresh() {
         setupStatus = readSetupStatus()
         if (!AnkiDroidHelper.isApiAvailable(this)) {
-            screenState = ScreenState.ApiUnavailable
+            screenState = if (AnkiDroidContract.isAnkiDroidInstalled(this)) ScreenState.ApiDisabled else ScreenState.AnkiDroidMissing
             return
         }
         if (!AnkiDroidHelper(this).isPermissionGranted) {
@@ -147,6 +150,27 @@ class MainActivity : ComponentActivity() {
             currentCard = loaded.currentCard
             screenState = ScreenState.Ready
         }
+    }
+
+    /** AnkiDroid's page in the store app (Play Store, F-Droid...), or on the web if no store app handles it. */
+    private fun openAnkiDroidStorePage() {
+        val market = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${AnkiDroidContract.PACKAGE}"))
+        try {
+            startActivity(market)
+        } catch (e: ActivityNotFoundException) {
+            val web = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=${AnkiDroidContract.PACKAGE}"))
+            try {
+                startActivity(web)
+            } catch (e: ActivityNotFoundException) {
+                Log.w(TAG, "No app to open AnkiDroid's store page", e)
+            }
+        }
+    }
+
+    /** Opens AnkiDroid, to enable its API. Coming back here refreshes the screen ([onResume]). */
+    private fun openAnkiDroid() {
+        val launch = packageManager.getLaunchIntentForPackage(AnkiDroidContract.PACKAGE) ?: return refresh()
+        startActivity(launch)
     }
 
     private class LoadedData(val decks: List<DeckItem>, val selectedDeckIds: List<Long>, val currentCard: CurrentCard)
